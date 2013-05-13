@@ -115,6 +115,8 @@ void uart_init(u32 bound){
 
 }
 
+// move this uart irq handler to vbox.c
+#if 0
 void USART1_IRQHandler(void)                	//串口1中断服务程序
 	{
 	u8 Res;
@@ -141,4 +143,5 @@ void USART1_IRQHandler(void)                	//串口1中断服务程序
 				}
 			}   		 
      } 
-} 
+}
+#endif 

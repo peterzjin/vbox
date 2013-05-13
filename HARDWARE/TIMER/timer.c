@@ -50,6 +50,8 @@ void Timerx_Init(u16 arr,u16 psc)
 							 
 }
 
+// move this timer irq handler to vbox.c
+#if 0
 void TIM3_IRQHandler(void)   //TIM3中断
 {
 	if (TIM_GetITStatus(TIM3, TIM_IT_Update) != RESET) //检查指定的TIM中断发生与否:TIM 中断源 
@@ -60,6 +62,7 @@ void TIM3_IRQHandler(void)   //TIM3中断
 		LED1=!LED1;
 		}
 }
+#endif
 
 
 
