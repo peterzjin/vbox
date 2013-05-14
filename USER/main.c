@@ -16,6 +16,9 @@
 #include "stdio.h"
 #include "string.h"
 #include "picdecoder.h"
+
+#include "v_key.h"
+#include "v_menu.h"
 #include "uart_timer.h"
 //Mini STM32开发板范例代码25
 //图片显示 实验
@@ -74,10 +77,11 @@ void viewPictures(const char *fileDir){
 	NVIC_Configuration();
 	uart_init(9600);
  	LED_Init();
-  	KEY_Init();	
+  	v_key_init();	
     LCD_Init();
 	SPI_Flash_Init();	//SPI FLASH初始化
 
+	v_menu_init();
 	f_mount(0, &fs);
 
 	while(font_init())
@@ -101,7 +105,40 @@ void viewPictures(const char *fileDir){
 	Show_Str(60,130,"开始显示...",16,0); 
 	delay_ms(1000);
 
-	viewPictures(filedir);	//一级目录浏览
+	
+    while(1)
+	{		
+//        v_key = v_key_scan();
+		if(v_cur_menu->menu_show){
+			v_cur_menu->menu_show();
+		}
+		v_cur_menu = v_cur_menu->down_menu;
+		delay_ms(500);
+/*		if(v_key != V_KEY_NONE){
+			switch(v_key)
+			{				 
+				case V_KEY_ENTER_SHORT:
+					LED0=!LED0;
+					break;
+				case V_KEY_UP_SHORT:
+					LED0=!LED0;
+					break;
+				case V_KEY_UP_SHORT:				
+					LED0=!LED0;
+					break;
+			}
+		}else{
+			delay_ms(10);
+		}
+*/	
+//        v_key_judge();					/* 按键逻辑程序 */	
+//        v_input();						/* 外部输入检测程序 */	
+//        v_menu_display();				/* LCD 菜单显示程序 */			
+//        logic();						/* 洗衣机主逻辑处理程序 */
+//        output(); 					/* 洗衣机输出处理程序 */
+//        alarm();						/* 洗衣机蜂鸣报警处理程序 */
+	}
+//	viewPictures(filedir);	//一级目录浏览
 
  }
 

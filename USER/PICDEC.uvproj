@@ -405,6 +405,16 @@
               <FileType>1</FileType>
               <FilePath>.\uart_timer.c</FilePath>
             </File>
+            <File>
+              <FileName>v_menu.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\v_menu.c</FilePath>
+            </File>
+            <File>
+              <FileName>v_key.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\v_key.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
