@@ -159,7 +159,7 @@
             <RunIndependent>0</RunIndependent>
             <UpdateFlashBeforeDebugging>1</UpdateFlashBeforeDebugging>
             <Capability>1</Capability>
-            <DriverSelection>4101</DriverSelection>
+            <DriverSelection>4098</DriverSelection>
           </Flash1>
           <Flash2>Segger\JL2CM3.dll</Flash2>
           <Flash3>"" ()</Flash3>
@@ -414,6 +414,11 @@
               <FileName>v_key.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\v_key.c</FilePath>
+            </File>
+            <File>
+              <FileName>7920.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\7920.c</FilePath>
             </File>
           </Files>
         </Group>

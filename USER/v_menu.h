@@ -8,26 +8,27 @@
 #define __V_MENU_H__
 #include "stm32f10x.h"
 
-typedef struct v_menu_struct
-{ 
-	struct v_menu_struct *enter_menu;
-	struct v_menu_struct *esc_menu;
-	struct v_menu_struct *up_menu;
-	struct v_menu_struct *down_menu;
-	void (*do_function) (void);
-	void (*menu_show)(void);
-}v_menu_struct_t;
-
-extern v_menu_struct_t *v_cur_menu;
-
 extern uint32_t v_menu_language;					//0x0E
 extern uint32_t v_menu_display_format;				//0x11
 extern uint32_t v_menu_show_all_time;				//0x20
+//like datasheet
+extern uint32_t v_sensor_work_mode;
+extern uint32_t v_sensor_error_delay_time;			//0x18
+//0: no alarm 1:alarm
+extern uint32_t v_sensor_instant_fuel_consum_1_alarm; //0x1A
+extern uint32_t v_sensor_instant_fuel_consum_2_alarm; //0x1B
+
 extern uint32_t v_sensor_fuel_consum_sample_time;	//0x19
 extern uint32_t v_sensor_flow_smaple_time;			//0x09
-extern uint32_t v_sensor_A_B_correct;			 	//0x07
-extern uint32_t v_sensor_C_D_correct;			 	//0x08
-extern uint32_t v_sensor_A_Trip;					//0x3B | 0x3c 
+
+extern uint32_t v_fuel_consum_1_correct;			 	//0x07|0x08	 0x3C|0x3F ?
+extern uint32_t v_fuel_consum_2_correct;
+//0:not in use 1:normal 2:abnormal
+extern uint32_t v_sensor_A_status;						//0x3C|0x3F
+extern uint32_t v_sensor_B_status;
+extern uint32_t v_sensor_C_status;
+extern uint32_t v_sensor_D_status;
+extern uint32_t v_sensor_A_Trip;					 
 extern uint32_t v_sensor_B_Trip;
 extern uint32_t v_sensor_C_Trip;
 extern uint32_t v_sensor_D_Trip;
@@ -35,10 +36,22 @@ extern uint32_t v_sensor_A_Tot;
 extern uint32_t v_sensor_B_Tot;
 extern uint32_t v_sensor_C_Tot;
 extern uint32_t v_sensor_D_Tot;
-extern uint32_t v_sensor_A_B_travel_fuel_consum_time;//0x3D	
-extern uint32_t v_sensor_A_B_travel_fuel_consum;
-extern uint32_t v_sensor_C_D_travel_fuel_consum_time;
-extern uint32_t v_sensor_C_D_travel_fuel_consum;
+//0x3D
+extern uint32_t v_fuel_consum_1_travel_time;	
+extern uint32_t v_fuel_consum_1_travel_consum;
+extern uint32_t v_fuel_consum_2_travel_time;
+extern uint32_t v_fuel_consum_2_travel_consum;
 
 void v_menu_init(void);
+void v_menu_enter_short(void);
+void v_menu_enter_3s(void);
+void v_menu_enter_6s(void);
+void v_menu_enter_15s(void);
+void v_menu_esc_short(void);
+void v_menu_esc_3s(void);
+void v_menu_esc_9s(void);
+void v_menu_up_short(void);
+void v_menu_down_short(void);
+
+void v_menu_show(void);
 #endif
