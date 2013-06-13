@@ -1,4 +1,6 @@
+#include <string.h>
 #include "sys.h"
+#include "ff.h"
 #include "led.h"
 #include "uart_timer.h"
 #include "v_menu.h"
@@ -11,30 +13,31 @@
 #define CAR_PLATE_LEN 8
 #define HISTORY_DATA_MAX_LEN 44
 #define HISTORY_DATA_BLOCKS 100
+#define HISTORY_DATA_BLOCKS_SIZE (HISTORY_DATA_MAX_LEN*HISTORY_DATA_BLOCKS)
 
-static u8 u_state = UART_IDLE;
-static u8 u_cmd;
-static int u_cmd_index;
-static u8 u_cmd_dft_len;
-static u8 u_data_len;
-static u8 u_buf[MAX_U_BUF_LEN];
-static u8 u_buf_offset;
+static uint8_t u_state = UART_IDLE;
+static uint8_t u_cmd;
+static uint8_t u_cmd_index;
+static uint8_t u_cmd_dft_len;
+static uint8_t u_data_len;
+static uint8_t u_buf[MAX_U_BUF_LEN];
+static uint8_t u_buf_offset;
 
 // used for SD storage
-static u16 data_tot_num;
-static u16 cur_data_id;
-static u16 cur_query_id;
-static u8 history_data[HISTORY_DATA_MAX_LEN];
-static u8 history_data_blocks[HISTORY_DATA_MAX_LEN * HISTORY_DATA_BLOCKS];
-static u8 tot_blocks;
-static u16 car_plate[CAR_PLATE_LEN];
+static uint16_t data_tot_num;
+static uint16_t cur_data_id;
+static uint16_t cur_query_id;
+static uint8_t history_data[HISTORY_DATA_MAX_LEN];
+static uint8_t history_data_blocks[HISTORY_DATA_BLOCKS_SIZE];
+static uint8_t tot_blocks;
+static uint16_t car_plate[CAR_PLATE_LEN];
 
 // for start_cmd_loop
-static int loop_cmd_index;
-static u8* loop_cmd_param;
-static int loop_cmd_param_len;
+static uint8_t loop_cmd_index;
+static uint8_t* loop_cmd_param;
+static uint8_t loop_cmd_param_len;
 
-u32 cmd_data_available;
+uint32_t cmd_data_available;
 
 // support cmds
 uart_cmd_t g_uart_cmds[] = 
@@ -52,6 +55,7 @@ uart_cmd_t g_uart_cmds[] =
 	{0x19, 0x81, {0x19, 0x80, CMD_DATA_END}},
 	{0x1A, 0x81, {0x1A, 0x80, CMD_DATA_END}},
 	{0x1B, 0x81, {0x1B, 0x80, CMD_DATA_END}},
+	{0x20, 0x81, {0x20, 0x80, CMD_DATA_END}},
 	{0x31, 0x84, {0x31, 0x80, CMD_DATA_END}},
 	{0x3A, 0xAC, {0x3A, 0x82, CMD_DATA_END}},
 	//{0x3B, 0xAC, {0x3B, 0x82, 0x00, 0x00, CMD_DATA_END}},
@@ -62,11 +66,11 @@ uart_cmd_t g_uart_cmds[] =
 	{0, 0, {CMD_DATA_END}}
 };
 
-void send_cmd(int cmd_index, u8* param, int param_len)
+void send_cmd(uint8_t cmd_index, uint8_t* param, uint8_t param_len)
 {
 	int i;
 
-	if (cmd_index < 0 || cmd_index >= LAST_UART_CMD)
+	if (cmd_index >= LAST_UART_CMD)
 		return;
 
 	cmd_data_available &= ~(1 << cmd_index);
@@ -90,11 +94,11 @@ void send_cmd(int cmd_index, u8* param, int param_len)
 // 0: cmd sucessfully return
 // 1: timeout
 // 2: error
-int wait_for_cmd(int cmd_index)
+int wait_for_cmd(uint8_t cmd_index)
 {
 	int timeout = 5000;
 
-	if (cmd_index < 0 || cmd_index >= LAST_UART_CMD)
+	if (cmd_index >= LAST_UART_CMD)
 		return 2;
 
 	while (!(cmd_data_available & (1 << cmd_index))) {
@@ -108,26 +112,22 @@ int wait_for_cmd(int cmd_index)
 }
 
 // return -1 if not a cmd, else return the cmd index.
-static int get_cmd_index(u8 value)
+static uint8_t get_cmd_index(uint8_t value)
 {
-	int i, ret = -1;
+	uint8_t i;
 
 	for (i = 0; i < LAST_UART_CMD; i++) {
-		if (g_uart_cmds[i].cmd == 0)
+		if (g_uart_cmds[i].cmd == value ||
+				g_uart_cmds[i].cmd == 0)
 			break;
-
-		if (g_uart_cmds[i].cmd == value) {
-			ret = i;
-			break;
-		}
 	}
 
-	return ret;
+	return i;
 }
 
-static u32 dec_to_hex(u32 dec)
+static uint32_t dec_to_hex(uint32_t dec)
 {
-	u32 hex = 0, mask = 0xF, p = 1, i;
+	uint32_t hex = 0, mask = 0xF, p = 1, i;
 
 	for (i = 0; i < 8; i ++) {
 		hex += ((dec & (mask << (i * 4))) >> (i * 4)) * p;
@@ -139,7 +139,7 @@ static u32 dec_to_hex(u32 dec)
 
 static void parse_uart_data(void)
 {
-	u32 i, tmp;
+	uint32_t i, tmp;
 
 	if ((u_data_len == 0x02 || u_data_len == 0x82) &&
 			(u_buf[0] == 'N' && u_buf[1] == 'O'))
@@ -152,7 +152,7 @@ static void parse_uart_data(void)
 			break;
 		case 0x06:
 			tmp = 0;
-			for (i = 0; i < u_data_len; i++) {
+			for (i = 0; i < u_data_len && tmp < CAR_PLATE_LEN; i++) {
 				if (u_buf[i] > 0x80) {
 					if (i < (u_data_len - 1))
 						// need to do something to convert to unicode
@@ -166,6 +166,11 @@ static void parse_uart_data(void)
 					car_plate[tmp++] = u_buf[i];
 				}
 			}
+
+			if (tmp < CAR_PLATE_LEN)
+				car_plate[tmp] = 0;
+			else
+				car_plate[tmp - 1] = 0;
 			break;
 		case 0x07:
 			v_fuel_consum_1_correct =
@@ -204,6 +209,9 @@ static void parse_uart_data(void)
 		case 0x1B:
 			v_sensor_instant_fuel_consum_2_alarm = u_buf[0];
 			break;
+		case 0x20:
+			v_menu_show_all_time = u_buf[0];
+			break;
 		case 0x31:
 			data_tot_num = (u_buf[1] << 8) | u_buf[0];
 			cur_data_id = (u_buf[3] << 8) | u_buf[2];
@@ -211,7 +219,7 @@ static void parse_uart_data(void)
 		case 0x3A:
 			if (u_data_len != HISTORY_DATA_MAX_LEN)
 				goto no_cmd;
-			//memcpy(history_data, u_buf, HISTORY_DATA_MAX_LEN);
+			memcpy(history_data, u_buf, HISTORY_DATA_MAX_LEN);
 			break;
 #if 0
 		case 0x3B:
@@ -327,7 +335,7 @@ void al_timer_init(void)
 
 }
 
-static void al_timer_start(u16 arr)
+static void al_timer_start(uint16_t arr)
 {
 	TIM_SetCounter(TIM3, 0);
 	TIM_SetAutoreload(TIM3, arr);
@@ -341,9 +349,9 @@ static void al_timer_stop(void)
 	TIM_Cmd(TIM3, DISABLE);
 }
 
-void start_cmd_loop(u16 arr, int cmd_index, u8* param, int param_len)
+void start_cmd_loop(uint16_t arr, uint8_t cmd_index, uint8_t* param, uint8_t param_len)
 {
-	if (cmd_index < 0 || cmd_index >= LAST_UART_CMD)
+	if (cmd_index >= LAST_UART_CMD)
 		return;
 
 	loop_cmd_index = cmd_index;
@@ -355,7 +363,7 @@ void start_cmd_loop(u16 arr, int cmd_index, u8* param, int param_len)
 void stop_cmd_loop(void)
 {
 	al_timer_stop();
-	loop_cmd_index = -1;
+	loop_cmd_index = LAST_UART_CMD;
 	loop_cmd_param = 0;
 	loop_cmd_param_len = 0;
 }
@@ -367,7 +375,7 @@ void TIM3_IRQHandler(void)
 		TIM_ClearITPendingBit(TIM3, TIM_IT_Update);
 		/* Pin PD.02 toggling with frequency = 10KHz */
 		//GPIO_WriteBit(GPIOD, GPIO_Pin_2, (BitAction)(1 - GPIO_ReadOutputDataBit(GPIOD, GPIO_Pin_2)));
-		LED1=!LED1;
+		//LED1=!LED1;
 		send_cmd(loop_cmd_index, 0, 0);
 	}
 }
@@ -394,7 +402,7 @@ void timo_timer_init(void)
 	NVIC_Init(&NVIC_InitStructure);
 }
 
-void timo_timer_start(u16 arr)
+void timo_timer_start(uint16_t arr)
 {
 	TIM_SetCounter(TIM2, 0);
 	TIM_SetAutoreload(TIM2, arr);
@@ -421,13 +429,13 @@ void TIM2_IRQHandler(void)
 
 void USART1_IRQHandler(void)
 {
-	u8 value;
+	uint8_t value;
 	if(USART_GetITStatus(USART1, USART_IT_RXNE) != RESET) {
 		value = USART_ReceiveData(USART1);
 		switch (u_state) {
 			case UART_IDLE:
 				u_cmd_index = get_cmd_index(value);
-				if (u_cmd_index < 0)
+				if (u_cmd_index >= LAST_UART_CMD)
 					break;
 
 				u_cmd = value;
@@ -442,7 +450,7 @@ void USART1_IRQHandler(void)
 						|| value == u_cmd_dft_len
 						|| u_cmd_dft_len == 0xFF)) {
 					u_cmd_index = get_cmd_index(value);
-					if (u_cmd_index < 0) {
+					if (u_cmd_index >= LAST_UART_CMD) {
 						u_state = UART_IDLE;
 						LED0 = 1;
 						break;
@@ -488,52 +496,79 @@ void USART1_IRQHandler(void)
 	}
 
 }
-#if 0
-static u16 data_tot_num;
-static u16 cur_data_id;
-static u16 cur_query_id;
-static u8 history_data[HISTORY_DATA_MAX_LEN];
-static u16 car_plate[CAR_PLATE_LEN];
+
+static void gen_file_name(uint16_t *car_plate, uint8_t *cur_date, TCHAR *filename)
+{
+	int i, offset = 0;
+
+	filename[offset++] = 48;  // '0'
+	filename[offset++] = 58;  // ':'
+	filename[offset++] = 47;  // '/'
+	filename[offset++] = 39;  // '''
+
+	for (i = 0; i < CAR_PLATE_LEN; i++) {
+		if (car_plate[i] == 0)
+			break;
+
+		filename[offset++] = car_plate[i];
+	}
+
+	filename[offset++] = 39;  // '''
+	filename[offset++] = 43;  // '+'
+	filename[offset++] = 50;  // '2'
+	filename[offset++] = 48;  // '0'
+
+	for (i = 0; i < 3; i++) {
+		filename[offset++] = ((cur_date[i] & 0xF0) >> 4) + 48;
+		filename[offset++] = (cur_date[i] & 0x0F) + 48;
+	}
+
+	filename[offset++] = 46;  // '.'
+	filename[offset++] = 116; // 't'
+	filename[offset++] = 120; // 'x'
+	filename[offset++] = 116; // 't'
+}
 
 // 0: sucess
 // 1: error
 int query_store_history(void)
 {
-	u16 i;
-	u8 query_id[2], cur_date[3];
-	u8* cur_ptr;
+	uint32_t i, bw;
+	uint8_t query_id[2], cur_date[3] = {0xFC};
+	uint8_t* cur_ptr;
 	FIL file;
+	TCHAR filename[32];
 
 	send_cmd(QUERY_DATA_TOT_CUR_ID, NULL, 0);
 	if (wait_for_cmd(QUERY_DATA_TOT_CUR_ID))
-		return 1;
+		goto error;
 
 	if (data_tot_num == 0)
-		return 0;
+		goto sucess;
 
-	memcpy(history_data_blocks, history_data, HISTORY_DATA_MAX_LEN);
-	memcpy(cur_date, history_data + 5, 3);
-	tot_blocks = 1;
-	cur_ptr = history_data_blocks + HISTORY_DATA_MAX_LEN;
-	f_open();
-	for (i = 1; i < data_tot_num; i++) {
+	for (i = 0; i < data_tot_num; i++) {
 		cur_query_id = cur_data_id - i;
 		query_id[0] = cur_query_id & 0xFF;
 		query_id[1] = ((cur_query_id & 0xFF00) >> 8);
 
 		send_cmd(QUERY_DATA_BY_ID, query_id, 2);
 		if (wait_for_cmd(QUERY_DATA_TOT_CUR_ID))
-			return 1;
+			goto error;
 
 		if (tot_blocks == HISTORY_DATA_BLOCKS) {
-			f_write();
+			f_write(&file, history_data_blocks,
+					HISTORY_DATA_BLOCKS_SIZE, &bw);
 			tot_blocks = 0;
 			cur_ptr = history_data_blocks;
 		}
 		if (memcmp(history_data + 5, cur_date, 3)) {
-			f_write();
-			f_close();
-			f_open();
+			if (i != 0) {
+				f_write(&file, history_data_blocks,
+						cur_ptr - history_data_blocks, &bw);
+				f_close(&file);
+			}
+			gen_file_name(car_plate, cur_date, filename);
+			f_open(&file, filename, FA_CREATE_ALWAYS);
 			tot_blocks = 0;
 			cur_ptr = history_data_blocks;
 			memcpy(cur_ptr, history_data, HISTORY_DATA_MAX_LEN);
@@ -545,9 +580,11 @@ int query_store_history(void)
 		tot_blocks++;
 		cur_ptr += HISTORY_DATA_MAX_LEN;
 	}
-	f_write();
-	f_close();
+	f_write(&file, history_data_blocks, cur_ptr - history_data_blocks, &bw);
+	f_close(&file);
 
+sucess:
 	return 0;
+error:
+	return 1;
 }
-#endif
