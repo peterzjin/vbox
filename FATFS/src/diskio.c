@@ -1,203 +1,261 @@
-#include "mmc_sd.h"
-#include "diskio.h"
-#include "flash.h"
-#include  <stdio.h>	 
-//////////////////////////////////////////////////////////////////////////////////	 
-//本程序只供学习使用，未经作者许可，不得用于其它任何用途
-//Mini STM32开发板
-//FATFS Diskio 驱动代码		   
-//正点原子@ALIENTEK
-//技术论坛:www.openedv.com
-//创建日期:2011/5/13 
-//版本：V2.0
-//版权所有，盗版必究。
-//Copyright(C) 正点原子 2009-2019
-//All rights reserved
-//********************************************************************************
+/*******************************************************************************
+ * @file	miniSTM32_diskio.c
+ * @author	Brian
+ * @version	V0.2.0
+ * @date	17-August-2011
+ * @brief	This file provides HAL (hardware abstraction layer) for FatFs.
+ * @note	For compatibility, sector(block) size is fixed to 512, and only 
+ *			supported drive	number is 0.
+ * @verbatim
+ *               
+ *			Programming Model 
+ *          ======================================= 
+ *			// Mount FAT file system
+ *			f_mount(0, &fatfs);
+ *
+ *			// File read operation
+ *			rc = f_open(&fil, "filname.ext", FA_READ);
+ *			while(1) {
+ *				rc = f_read(&fil, buffer, sizeof(buffer), &br);
+ *				if( rc || !br ) break;
+ *			}
+ *			rc = f_close(&fil);
+ *
+ *			// File write operation
+ *			rc = f_open(&fil, "filename.ext", FA_WRITE | FA_CREATE_ALWAYS);
+ *			rc = f_write(&fil, "Test data" 700, &br);
+ *			rc = f_close(&fil);
+ *               
+ *			// Directory read
+ *			rc = f_opendir(&dir, "");
+ *			rc = f_readdir(&dir, &fno);
+ *              
+ *  @endverbatim                
+ */ 
 
-#define SD_CARD	 0  //SD卡,卷标为0
-#define EX_FLASH 1	//外部flash,卷标为1
+#include "mmc_sd.h"					/* SD card subsystem */
+#include "diskio.h"					/* FatFs support */
 
-#define FLASH_SECTOR_SIZE 	512
-//前2M字节给fatfs用,后2M字节~2M+500K给用户用,2M+500K以后,用于存放字库,字库占用1.5M.
-#define FLASH_SECTOR_COUNT 	4096  //全部一起,总共有8192个扇区(以512字节算) W25Q16为2048,Q32为4096,Q64为16384 这里强制用512字节
-#define FLASH_BLOCK_SIZE  	8     //每个BLOCK有8个扇区
+#define FATTIME_YEAR				(2011)
+#define FATTIME_MONTH				(1)
+#define FATTIME_DATE				(1)
+#define FAT_SECTORSIZE				512
 
-//初始化磁盘
-DSTATUS disk_initialize (
-	BYTE drv				/* Physical drive nmuber (0..) */
-)
-{	
-	u8 res;	    
-	switch(drv)
-	{
-		case SD_CARD://SD卡
-			res = SD_Initialize();//SD_Initialize();
-			break;
-		case EX_FLASH://外部flash
-			SPI_Flash_Init();
-			if(SPI_Flash_ReadID()!=SPI_FLASH_TYPE)res=1;//W25Q16 ID=0XEF15
-			else res=0;
-			break;
-		default:
-			res=1; 
-	}		 
-	if(res)return  STA_NOINIT;
-	else return 0; //初始化成功
-}   
-//获得磁盘状态
-DSTATUS disk_status (
-	BYTE drv		/* Physical drive nmuber (0..) */
-)
-{		   
-    return 0;
-}
- //读扇区
- //drv:磁盘编号0~9
- //*buff:数据接收缓冲首地址
- //sector:扇区地址
- //count:需要读取的扇区数
-DRESULT disk_read (
-	BYTE drv,		/* Physical drive nmuber (0..) */
-	BYTE *buff,		/* Data buffer to store read data */
-	DWORD sector,	/* Sector address (LBA) */
-	BYTE count		/* Number of sectors to read (1..255) */
-)
+
+/**
+ * @brief	Get disk status.
+ * @param	drv	: drive number (should be 0)
+ * @retval	DSTATUS
+ *			This value can be
+ *				STA_NODISK	: invalid drive number
+ *				STA_NOINIT	: initialization required
+ *				STA_OK		: disk is ready
+ */
+DSTATUS disk_status ( BYTE drv )
 {
-	u8 res=0; 
-    if (!count)return RES_PARERR;//count不能等于0，否则返回参数错误		 	 
-	switch(drv)
-	{
-		case SD_CARD://SD卡
-			res=SD_ReadDisk(buff,sector,count);
-			break;
-		case EX_FLASH://外部flash
-			for(;count>0;count--)
-			{
-				SPI_Flash_Read(buff,sector*FLASH_SECTOR_SIZE,FLASH_SECTOR_SIZE);
-				sector++;
-				buff+=FLASH_SECTOR_SIZE;
-			}
-			res=0;
-			break;
-		default:
-			res=1; 
-	}
-    //处理返回值，将SPI_SD_driver.c的返回值转成ff.c的返回值
-    if(res == 0x00)return RES_OK;	 
-    else return RES_ERROR;	   
-}  
- //写扇区
- //drv:磁盘编号0~9
- //*buff:发送数据首地址
- //sector:扇区地址
- //count:需要写入的扇区数	    
-#if _READONLY == 0
-DRESULT disk_write (
-	BYTE drv,			/* Physical drive nmuber (0..) */
-	const BYTE *buff,	        /* Data to be written */
-	DWORD sector,		/* Sector address (LBA) */
-	BYTE count			/* Number of sectors to write (1..255) */
-)
-{
-	u8 res=0;  
-    if (!count)return RES_PARERR;//count不能等于0，否则返回参数错误		 	 
-	switch(drv)
-	{
-		case SD_CARD://SD卡
-			res=SD_WriteDisk((u8*)buff,sector,count);
-			break;
-		case EX_FLASH://外部flash
-			for(;count>0;count--)
-			{
-				//SPI_Flash_Erase_Sector(sector);
-				SPI_Flash_Write((u8*)buff,sector*FLASH_SECTOR_SIZE,FLASH_SECTOR_SIZE);
-				sector++;
-				buff+=FLASH_SECTOR_SIZE;
-			}
-			res=0;
-			break;
-		default:
-			res=1; 
-	}
-     //处理返回值，将SPI_SD_driver.c的返回值转成ff.c的返回值
-    if(res == 0x00)return RES_OK;	 
-    else return RES_ERROR;		 
-}
-#endif /* _READONLY */
+	/* only one drive is supported */
+	if( drv != 0 )  return STA_NODISK;
 
-//其他表参数的获得
- //drv:磁盘编号0~9
- //ctrl:控制代码
- //*buff:发送/接收缓冲区指针
-DRESULT disk_ioctl (
-	BYTE drv,		/* Physical drive nmuber (0..) */
-	BYTE ctrl,		/* Control code */
-	void *buff		/* Buffer to send/receive control data */
-)
-{	
-	DRESULT res;						  
-	if(drv==SD_CARD)//SD卡
+	/* check if SD card is ready to use */
+	if( SDC_GetState() != SD_CARD_TRANSFER )
+		return STA_NOINIT;
+	else 
+		return STA_OK;
+
+}
+
+/**
+ * @brief	Initialize the disk.
+ * @param	drv	: drive number (should be 0)
+ * @retval	DSTATUS
+ *			This value can be
+ *				STA_NODISK	: invalid drive number
+ *				STA_NOINIT	: initialization required
+ *				STA_OK		: requested operation succeeded
+ */
+DSTATUS disk_initialize ( BYTE drv )
+{
+	/* only one drive is supported */
+	if(drv != 0) return STA_NODISK;
+
+	if(SDC_Init() == SD_OK)
 	{
-	    switch(ctrl)
-	    {
-		    case CTRL_SYNC:
-				SD_CS=0;
-		        if(SD_WaitReady()==0)res = RES_OK; 
-		        else res = RES_ERROR;	  
-				SD_CS=1;
-		        break;	 
-		    case GET_SECTOR_SIZE:
-		        *(WORD*)buff = 512;
-		        res = RES_OK;
-		        break;	 
-		    case GET_BLOCK_SIZE:
-		        *(WORD*)buff = 8;
-		        res = RES_OK;
-		        break;	 
-		    case GET_SECTOR_COUNT:
-		        *(DWORD*)buff = SD_GetSectorCount();
-		        res = RES_OK;
-		        break;
-		    default:
-		        res = RES_PARERR;
-		        break;
-	    }
-	}else if(drv==EX_FLASH)	//外部FLASH  
+		/* It is important to set the block size to FAT_SECTORSIZE here,
+		   otherwise subsequent disk operations would freeze */
+		if(SDC_SetBlockSize(FAT_SECTORSIZE) != SD_OK)
+			return STA_NOINIT;
+		else
+			return STA_OK;
+	}
+	else
+		return STA_NOINIT;
+}
+
+/**
+ * @brief	Read sectors from the disk.
+ * @param	drv		: drive number (should be 0)
+ *			buff	: buffer for the data to be read
+ *			sector	: starting sector number
+ *			count	: number of sector to be written
+ * @retval	DRESULT
+ *			This value can be
+ *				RES_OK		: requested write operation succeeded
+ *				RES_ERROR	: R/W error(check the hardware)
+ *				RES_WRPRT	: SD card is write procted(not supported)
+ *				RES_NOTRDY	: disk not ready(initialization required)
+ *				RES_PARERR	: invalid parameter(check the parameter)
+ */
+
+DRESULT disk_read (BYTE drv, BYTE *buff, DWORD sector, BYTE count)
+{
+	SDCardState s;
+
+	if( drv != 0 ) return RES_PARERR;
+	if( !count ) return RES_PARERR;
+
+	s = SDC_GetState();
+
+	if( (s == SD_CARD_READY) || (s == SD_CARD_IDENTIFICATION) )
+		return RES_NOTRDY;
+	else if( (s == SD_CARD_ERROR) || (s == SD_CARD_DISCONNECTED) )
+		return RES_ERROR;
+	else if( s != SD_CARD_TRANSFER )
+		while( SDC_GetState() != SD_CARD_TRANSFER );
+
+	sector *= FAT_SECTORSIZE; /* Convert LBA to byte address */
+
+	if( count == 1 )
 	{
-	    switch(ctrl)
-	    {
-		    case CTRL_SYNC:
-				res = RES_OK; 
-		        break;	 
-		    case GET_SECTOR_SIZE:
-		        *(WORD*)buff = FLASH_SECTOR_SIZE;
-		        res = RES_OK;
-		        break;	 
-		    case GET_BLOCK_SIZE:
-		        *(WORD*)buff = FLASH_BLOCK_SIZE;
-		        res = RES_OK;
-		        break;	 
-		    case GET_SECTOR_COUNT:
-		        *(DWORD*)buff = FLASH_SECTOR_COUNT;
-		        res = RES_OK;
-		        break;
-		    default:
-		        res = RES_PARERR;
-		        break;
-	    }
-	}else res=RES_ERROR;//其他的不支持
-    return res;
-}   
-//获得时间
-//User defined function to give a current time to fatfs module          */
-//31-25: Year(0-127 org.1980), 24-21: Month(1-12), 20-16: Day(1-31) */                                                                                                                                                                                                                                          
-//15-11: Hour(0-23), 10-5: Minute(0-59), 4-0: Second(0-29 *2) */                                                                                                                                                                                                                                                
+		SDC_ReadBlock( buff, sector, FAT_SECTORSIZE );
+	}
+	else
+	{
+		SDC_ReadMultiBlocks( buff, sector, FAT_SECTORSIZE, count );
+	}
+	SDC_WaitReadOperation();
+
+	while(SDC_GetStatus() != SD_TRANSFER_OK);
+
+	return RES_OK;
+
+}
+
+
+/**
+ * @brief	Write sectors to the disk.
+ * @param	drv		: drive number (should be 0)
+ *			buff	: buffer contains the data to be written
+ *			sector	: starting sector number
+ *			count	: number of sector to be written
+ * @retval	DRESULT
+ *			This value can be
+ *				RES_OK		: requested write operation succeeded
+ *				RES_ERROR	: R/W error(check the hardware)
+ *				RES_WRPRT	: SD card is write procted(not supported)
+ *				RES_NOTRDY	: disk not ready(initialization required)
+ *				RES_PARERR	: invalid parameter(check the parameter)
+ */
+
+DRESULT disk_write (BYTE drv, const BYTE *buff, DWORD sector, BYTE count)
+{
+
+	SDCardState s;
+
+	if( drv != 0 ) return RES_PARERR;
+	if( !count ) return RES_PARERR;
+
+	s = SDC_GetState();
+
+	if( (s == SD_CARD_READY) || (s == SD_CARD_IDENTIFICATION) )
+		return RES_NOTRDY;
+	else if( (s == SD_CARD_ERROR) || (s == SD_CARD_DISCONNECTED) )
+		return RES_ERROR;
+	else if( s != SD_CARD_TRANSFER )
+		while( SDC_GetState() != SD_CARD_TRANSFER );
+
+	sector *= FAT_SECTORSIZE; /* Convert LBA to byte address */
+
+	if( count == 1 )
+	{
+		SDC_WriteBlock((uint8_t*)buff, sector, FAT_SECTORSIZE);
+	}
+	else
+	{
+		SDC_WriteMultiBlocks((uint8_t*)buff, sector, FAT_SECTORSIZE, count);
+	}
+	SDC_WaitWriteOperation();
+
+	while(SDC_GetStatus() != SD_TRANSFER_OK);
+
+	return RES_OK;
+
+}
+
+
+/**
+ * @brief	Perform disk io control.
+ * @param	drv		: drive number (should be 0)
+ *			ctrl	: control code. 
+ *				Supported codes are CTRL_SYNC, CTRL_EARSE_SECTOR
+ *				GET_SECTOR_SIZE, GET_SECTOR_COUNT, and GET_BLOCK_SIZE
+ *			buff	: contains information required (both way)
+ * @retval	DRESULT
+ *			This value can be
+ *				RES_OK		: requested operation succeeded
+ *				RES_ERROR	: R/W error(check the hardware)
+ *				RES_WRPRT	: SD card is write procted(not supported)
+ *				RES_NOTRDY	: disk not ready(initialization required)
+ *				RES_PARERR	: invalid parameter(check the parameter)
+ */
+
+DRESULT disk_ioctl ( BYTE drv, BYTE ctrl, void *buff )
+{
+
+	if( drv != 0 ) return RES_PARERR;
+
+	if ( disk_status(drv) & STA_NOINIT) return RES_NOTRDY;
+
+	if( ctrl == CTRL_SYNC ) {
+		/* do something here */
+		return RES_OK;
+	}
+	else if( ctrl == GET_SECTOR_SIZE ) {
+		*(DWORD*)buff = FAT_SECTORSIZE;
+		return RES_OK;
+	}
+#if _USE_MKFS && !_FS_READONLY
+	else if( ctrl == GET_SECTOR_COUNT ) {
+		*(DWORD*)buff = SDCardInfo.CardCapacity/FAT_SECTORSIZE;
+		return RES_OK;
+	}
+	else if( ctrl == GET_BLOCK_SIZE ) {
+		*(DWORD*)buff = SDCardInfo.CardBlockSize;
+		return RES_OK;
+	}
+#endif
+	else if( ctrl == CTRL_ERASE_SECTOR ) {
+		if(SDC_Erase( (*((DWORD*)buff)) * FAT_SECTORSIZE, 
+			(*((DWORD*)buff+1)) * FAT_SECTORSIZE) == SD_OK)
+			return RES_OK;
+		else
+			return RES_ERROR;
+	}
+}
+
+/**
+ * @brief	Provides (fixed) time stamp for FAT operation.
+ * @param	None
+ * @retval	DWORD: fixed time stamp coded in a double word.
+ */
+
 DWORD get_fattime (void)
 {
-	return 0;
+	return	((DWORD)(FATTIME_YEAR - 1980) << 25)	/* Fixed */
+			| ((DWORD)FATTIME_MONTH << 21)
+			| ((DWORD)FATTIME_DATE << 16)
+			| ((DWORD)0 << 11)
+			| ((DWORD)0 << 5)
+			| ((DWORD)0 >> 1);
 }
 
-
-
-
+/* END OF FILE */
