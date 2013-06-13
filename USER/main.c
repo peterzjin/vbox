@@ -20,6 +20,8 @@
 #include "v_key.h"
 #include "v_menu.h"
 #include "uart_timer.h"
+#include "v_lcd.h"
+#include "v_buzz.h"
 
 
  int main(void)
@@ -30,14 +32,15 @@
 	NVIC_Configuration();
 	uart_init(9600);
  	LED_Init();
-  	v_key_init();	
+  	v_key_init();
+//	v_buzz_init();	
 	v_lcd_init();
 	al_timer_init();
 	timo_timer_init();
-	v_menu_show_str(0,"  Starting...");
 //	SPI_Flash_Init();	//SPI FLASH≥ı ºªØ
 //	f_mount(0, &fs);
 	v_menu_init();
+//	v_buzz_2s();
     while(1)
 	{		
       	v_key_scan();

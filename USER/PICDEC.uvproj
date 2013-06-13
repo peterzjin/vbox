@@ -420,6 +420,11 @@
               <FileType>1</FileType>
               <FilePath>.\7920.c</FilePath>
             </File>
+            <File>
+              <FileName>v_buzz.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\v_buzz.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
