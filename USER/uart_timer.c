@@ -38,6 +38,7 @@ static uint8_t* loop_cmd_param;
 static uint8_t loop_cmd_param_len;
 
 uint32_t cmd_data_available;
+uint32_t recv_cmd;
 
 // support cmds
 uart_cmd_t g_uart_cmds[] = 
@@ -137,9 +138,24 @@ static uint32_t dec_to_hex(uint32_t dec)
 	return hex;
 }
 
+static void send_OK(void)
+{
+	uint8_t ok[4], i;
+
+	ok[0] = u_cmd;
+	ok[1] = u_data_len;
+	ok[2] = 'O';
+	ok[3] = 'K';
+
+	for (i = 0; i < 4; i++) {
+		USART_SendData(USART1, ok[i]);
+		while (USART_GetFlagStatus(USART1, USART_FLAG_TC) == RESET);
+	}
+}
+
 static void parse_uart_data(void)
 {
-	uint32_t i, tmp;
+	uint32_t i, tmp, is_cmd = 0;
 
 	if ((u_data_len == 0x02 || u_data_len == 0x82) &&
 			(u_buf[0] == 'N' && u_buf[1] == 'O'))
@@ -175,25 +191,40 @@ static void parse_uart_data(void)
 		case 0x07:
 			v_fuel_consum_1_correct =
 				u_buf[0] * 1000 + (u_buf[1] & 0x7F) * 10;
+
+			if (u_data_len == 0x02)
+				is_cmd = 1;
 			break;
 		case 0x08:
 			v_fuel_consum_2_correct =
 				u_buf[0] * 1000 + (u_buf[1] & 0x7F) * 10;
+
+			if (u_data_len == 0x02)
+				is_cmd = 1;
 			break;
 		case 0x09:
 			if (u_buf[0] > 60)
 				goto no_cmd;
 			v_sensor_flow_smaple_time = u_buf[0];
+
+			if (u_data_len == 0x01)
+				is_cmd = 1;
 			break;
 		case 0x0E:
 			if (u_buf[0] > 1)
 				goto no_cmd;
 			v_menu_language = u_buf[0];
+
+			if (u_data_len == 0x01)
+				is_cmd = 1;
 			break;
 		case 0x11:
 			if (u_buf[0] > 1)
 				goto no_cmd;
 			v_menu_display_format = u_buf[0];
+
+			if (u_data_len == 0x01)
+				is_cmd = 1;
 			break;
 		case 0x18:
 			v_sensor_error_delay_time = u_buf[0];
@@ -211,6 +242,9 @@ static void parse_uart_data(void)
 			break;
 		case 0x20:
 			v_menu_show_all_time = u_buf[0];
+
+			if (u_data_len == 0x01)
+				is_cmd = 1;
 			break;
 		case 0x31:
 			data_tot_num = (u_buf[1] << 8) | u_buf[0];
@@ -307,7 +341,12 @@ static void parse_uart_data(void)
 			goto no_cmd;
 	}
 
-	cmd_data_available |= (1 << u_cmd_index);
+	if (is_cmd) {
+		send_OK();
+		recv_cmd |= (1 << u_cmd_index);
+	} else {
+		cmd_data_available |= (1 << u_cmd_index);
+	}
 no_cmd:
 	return;
 }
@@ -449,7 +488,7 @@ void USART1_IRQHandler(void)
 
 			case UART_RCV1:
 				if (!(value == 0x02 || value == 0x82
-						|| value == u_cmd_dft_len
+						|| value == (u_cmd_dft_len & 0x7F)
 						|| u_cmd_dft_len == 0xFF)) {
 					u_cmd_index = get_cmd_index(value);
 					if (u_cmd_index >= LAST_UART_CMD) {

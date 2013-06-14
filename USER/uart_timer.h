@@ -2,6 +2,7 @@
 #define __UART_TIMER_H
 
 extern uint32_t cmd_data_available;
+extern uint32_t recv_cmd;
 
 void timo_timer_init(void);
 void al_timer_init(void);
