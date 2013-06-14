@@ -12,6 +12,8 @@ void stop_cmd_loop(void);
 void send_cmd(uint8_t cmd_index, uint8_t* param, uint8_t param_len);
 int wait_for_cmd(uint8_t cmd_index);
 
+int query_store_history(void);
+
 enum e_uart_cmds {
 	ENABLE_DISABLE_RESET,		//0x01
 	CAR_PLATE,			//0x06
