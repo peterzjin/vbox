@@ -80,14 +80,14 @@ void send_cmd(uint8_t cmd_index, uint8_t* param, uint8_t param_len)
 		if (g_uart_cmds[cmd_index].cmd_data[i] == CMD_DATA_END)
 			break;
 
-		USART_SendData(USART1, g_uart_cmds[cmd_index].cmd_data[i]);
 		while (USART_GetFlagStatus(USART1, USART_FLAG_TC) == RESET);
+		USART_SendData(USART1, g_uart_cmds[cmd_index].cmd_data[i]);
 	}
 
 	if (param != 0) {
 		for (i = 0; i < param_len; i++) {
-			USART_SendData(USART1, param[i]);
 			while (USART_GetFlagStatus(USART1, USART_FLAG_TC) == RESET);
+			USART_SendData(USART1, param[i]);
 		}
 	}
 }
@@ -97,12 +97,13 @@ void send_cmd(uint8_t cmd_index, uint8_t* param, uint8_t param_len)
 // 2: error
 int wait_for_cmd(uint8_t cmd_index)
 {
-	int timeout = 5000;
+	int timeout = 500;
 
 	if (cmd_index >= LAST_UART_CMD)
 		return 2;
 
-	for (; timeout > 0 && !(cmd_data_available & (1 << cmd_index)); timeout--);
+	for (; timeout > 0 && !(cmd_data_available & (1 << cmd_index)); timeout--)
+		delay_ms(1);
 
 	cmd_data_available &= ~(1 << cmd_index);
 
@@ -165,7 +166,7 @@ static void parse_uart_data(void)
 			break;
 		case 0x06:
 			tmp = 0;
-			for (i = 0; i < u_data_len && tmp < CAR_PLATE_LEN; i++) {
+			for (i = 0; i < (u_data_len & 0x7F) && tmp < CAR_PLATE_LEN; i++) {
 				if (u_buf[i] < 0x80)
 					car_plate[tmp++] = u_buf[i];
 			}
@@ -238,7 +239,7 @@ static void parse_uart_data(void)
 			cur_data_id = (u_buf[3] << 8) | u_buf[2];
 			break;
 		case 0x3A:
-			if (u_data_len != HISTORY_DATA_MAX_LEN)
+			if ((u_data_len & 0x7F) != HISTORY_DATA_MAX_LEN)
 				goto no_cmd;
 			memcpy(history_data, u_buf, HISTORY_DATA_MAX_LEN);
 			break;
@@ -479,6 +480,7 @@ void USART1_IRQHandler(void)
 
 			case UART_RCV1:
 				if (!(value == 0x02 || value == 0x82
+						|| value == u_cmd_dft_len
 						|| value == (u_cmd_dft_len & 0x7F)
 						|| u_cmd_dft_len == 0xFF)) {
 					u_cmd_index = get_cmd_index(value);
