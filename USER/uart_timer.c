@@ -325,6 +325,7 @@ void al_timer_init(void)
 	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
 	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
 	TIM_TimeBaseInit(TIM3, &TIM_TimeBaseStructure);
+	TIM_ClearITPendingBit(TIM2, 0xFF);
 
 	/* Enable the TIM3 global Interrupt */
 	NVIC_InitStructure.NVIC_IRQChannel = TIM3_IRQn;
@@ -393,6 +394,7 @@ void timo_timer_init(void)
 	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
 	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
 	TIM_TimeBaseInit(TIM2, &TIM_TimeBaseStructure);
+	TIM_ClearITPendingBit(TIM2, 0xFF);
 
 	/* Enable the TIM2 global Interrupt */
 	NVIC_InitStructure.NVIC_IRQChannel = TIM2_IRQn;
