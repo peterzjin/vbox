@@ -15,6 +15,7 @@ int wait_for_cmd(uint8_t cmd_index);
 int query_store_history(void);
 
 enum e_uart_cmds {
+	GET_DATE_TIME,			//0x00
 	ENABLE_DISABLE_RESET,		//0x01
 	CAR_PLATE,			//0x06
 	FC1_CORRECTION,			//0x07
@@ -38,13 +39,5 @@ enum e_uart_cmds {
 	SENSOR_WOKR_MODE,		//0x40
 	LAST_UART_CMD
 };
-
-#define MAX_CMD_DATA_LEN 8
-typedef struct uart_cmd_struct
-{
-	uint8_t cmd;
-	uint8_t length;
-	uint8_t cmd_data[MAX_CMD_DATA_LEN];
-}uart_cmd_t;
 
 #endif

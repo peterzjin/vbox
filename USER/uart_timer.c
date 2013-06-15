@@ -6,22 +6,42 @@
 #include "v_menu.h"
 
 #define UART_IDLE 0
-#define UART_RCV1 1
-#define UART_RCV2 2
+#define UART_PREA 1
+#define UART_RCV1 2
+#define UART_RCV2 3
+#define UART_PREAMBLE1 0x4F
+#define UART_PREAMBLE2 0x6C
+#define UART_RES_M 0x4D
+#define UART_RES_R 0x52
 #define CMD_DATA_END 0xFF
-#define MAX_U_BUF_LEN 128
+#define MAX_U_BUF_LEN 256
 #define CAR_PLATE_LEN 8
 #define HISTORY_DATA_MAX_LEN 44
 #define FS_SECTOR_SIZE 512
-#define DATE_BUF_LEN 12
+#define DATE_BUF_LEN 7
+
+#define MAX_CMD_DATA_LEN 8
+typedef struct uart_cmd_struct
+{
+	uint8_t cmd;
+	uint8_t length;
+	uint8_t cmd_data[MAX_CMD_DATA_LEN];
+	uint8_t cmd_len;
+}uart_cmd_t;
+
 
 static uint8_t u_state = UART_IDLE;
 static uint8_t u_cmd;
 static uint8_t u_cmd_index;
-static uint8_t u_cmd_dft_len;
+//static uint8_t u_cmd_dft_len;
 static uint8_t u_data_len;
-static uint8_t u_buf[MAX_U_BUF_LEN];
+static uint8_t *u_buf;
+static uint8_t u_raw_data_len;
+static uint8_t u_raw_buf[MAX_U_BUF_LEN];
 static uint8_t u_buf_offset;
+static uint8_t u_tx_buf[MAX_U_BUF_LEN];
+static uint8_t recv_cmd_id[2];
+static uint16_t send_cmd_id = 0x122C;
 
 // used for SD storage
 static uint16_t data_tot_num;
@@ -43,52 +63,78 @@ uint32_t recv_cmd;
 // support cmds
 uart_cmd_t g_uart_cmds[] = 
 {
-	{0x01, 0x81, {0x01, 0x01, 0x01, CMD_DATA_END}},
-	{0x06, 0xFF, {0x06, 0x80, CMD_DATA_END}},
-	{0x07, 0x82, {0x07, 0x80, CMD_DATA_END}},
-	{0x08, 0x82, {0x08, 0x80, CMD_DATA_END}},
-	{0x09, 0x81, {0x09, 0x80, CMD_DATA_END}},
-	{0x0C, 0x02, {0x0C, 0x00, CMD_DATA_END}},
-	{0x0D, 0x02, {0x0D, 0x02, 0x47, 0x54, CMD_DATA_END}},
-	{0x0E, 0x81, {0x0E, 0x80, CMD_DATA_END}},
-	{0x11, 0x81, {0x11, 0x80, CMD_DATA_END}},
-	{0x18, 0x81, {0x18, 0x80, CMD_DATA_END}},
-	{0x19, 0x81, {0x19, 0x80, CMD_DATA_END}},
-	{0x1A, 0x81, {0x1A, 0x80, CMD_DATA_END}},
-	{0x1B, 0x81, {0x1B, 0x80, CMD_DATA_END}},
-	{0x20, 0x81, {0x20, 0x80, CMD_DATA_END}},
-	{0x31, 0x84, {0x31, 0x80, CMD_DATA_END}},
-	{0x3A, 0xAC, {0x3A, 0x82, CMD_DATA_END}},
-	//{0x3B, 0xAC, {0x3B, 0x82, 0x00, 0x00, CMD_DATA_END}},
-	{0x3C, 0xAC, {0x3C, 0x82, 0x00, 0x00, CMD_DATA_END}},
-	{0x3D, 0xAC, {0x3D, 0x82, 0x00, 0x00, CMD_DATA_END}},
-	{0x3F, 0xAC, {0x3F, 0x82, 0x00, 0x00, CMD_DATA_END}},
-	{0x40, 0x81, {0x40, 0x80, CMD_DATA_END}},
-	{0, 0, {CMD_DATA_END}}
+	{0x00, 0x87, {0x00, 0x80, CMD_DATA_END}, 2},
+	{0x01, 0x81, {0x01, 0x01, 0x01, CMD_DATA_END}, 3},
+	{0x06, 0xFF, {0x06, 0x80, CMD_DATA_END}, 2},
+	{0x07, 0x82, {0x07, 0x80, CMD_DATA_END}, 2},
+	{0x08, 0x82, {0x08, 0x80, CMD_DATA_END}, 2},
+	{0x09, 0x81, {0x09, 0x80, CMD_DATA_END}, 2},
+	{0x0C, 0x02, {0x0C, 0x00, CMD_DATA_END}, 2},
+	{0x0D, 0x02, {0x0D, 0x02, 0x47, 0x54, CMD_DATA_END}, 4},
+	{0x0E, 0x81, {0x0E, 0x80, CMD_DATA_END}, 2},
+	{0x11, 0x81, {0x11, 0x80, CMD_DATA_END}, 2},
+	{0x18, 0x81, {0x18, 0x80, CMD_DATA_END}, 2},
+	{0x19, 0x81, {0x19, 0x80, CMD_DATA_END}, 2},
+	{0x1A, 0x81, {0x1A, 0x80, CMD_DATA_END}, 2},
+	{0x1B, 0x81, {0x1B, 0x80, CMD_DATA_END}, 2},
+	{0x20, 0x81, {0x20, 0x80, CMD_DATA_END}, 2},
+	{0x31, 0x84, {0x31, 0x80, CMD_DATA_END}, 2},
+	{0x3A, 0xAC, {0x3A, 0x82, CMD_DATA_END}, 2},
+	//{0x3B, 0xAC, {0x3B, 0x82, 0x00, 0x00, CMD_DATA_END}, 4},
+	{0x3C, 0xAC, {0x3C, 0x82, 0x00, 0x00, CMD_DATA_END}, 4},
+	{0x3D, 0xAC, {0x3D, 0x82, 0x00, 0x00, CMD_DATA_END}, 4},
+	{0x3F, 0xAC, {0x3F, 0x82, 0x00, 0x00, CMD_DATA_END}, 4},
+	{0x40, 0x81, {0x40, 0x80, CMD_DATA_END}, 2},
 };
+
+typedef struct u_raw_data_struct
+{
+	uint8_t preamble1;
+	uint8_t preamble2;
+	uint8_t len;
+	uint8_t response;
+	uint8_t id_l;
+	uint8_t id_h;
+	uint8_t cmd;
+	uint8_t cmd_len;
+	uint8_t cmd_data;
+}u_raw_data;
+
+static uint8_t checksum(uint8_t len, uint8_t *strCmd)
+{
+	uint8_t crc = 0, i;
+	for(i = 0; i < len; i++)
+		crc ^= strCmd[i];
+	return crc;
+}
 
 void send_cmd(uint8_t cmd_index, uint8_t* param, uint8_t param_len)
 {
 	int i;
+	u_raw_data *tx_data;
 
 	if (cmd_index >= LAST_UART_CMD)
 		return;
 
 	cmd_data_available &= ~(1 << cmd_index);
 
-	for (i = 0; i < MAX_CMD_DATA_LEN; i++) {
-		if (g_uart_cmds[cmd_index].cmd_data[i] == CMD_DATA_END)
-			break;
-
-		while (USART_GetFlagStatus(USART1, USART_FLAG_TC) == RESET);
-		USART_SendData(USART1, g_uart_cmds[cmd_index].cmd_data[i]);
+	tx_data = (u_raw_data *)u_tx_buf;
+	tx_data->preamble1 = UART_PREAMBLE1;
+	tx_data->preamble2 = UART_PREAMBLE2;
+	tx_data->len = g_uart_cmds[cmd_index].cmd_len + 4;
+	tx_data->response = UART_RES_M;
+	tx_data->id_l = send_cmd_id & 0xFF;
+	tx_data->id_h = ((send_cmd_id++) & 0xFF00) >> 8;
+	memcpy(&(tx_data->cmd), g_uart_cmds[cmd_index].cmd_data, g_uart_cmds[cmd_index].cmd_len);
+	if (param != NULL) {
+		memcpy(u_tx_buf + tx_data->len + 2, param, param_len);
+		tx_data->len += param_len;
 	}
+	u_tx_buf[tx_data->len + 2] = checksum(tx_data->len + 2, u_tx_buf);
 
-	if (param != 0) {
-		for (i = 0; i < param_len; i++) {
-			while (USART_GetFlagStatus(USART1, USART_FLAG_TC) == RESET);
-			USART_SendData(USART1, param[i]);
-		}
+	for (i = 0; i < tx_data->len + 3; i++) {
+		while (USART_GetFlagStatus(USART1, USART_FLAG_TC) == RESET);
+		USART_SendData(USART1, u_tx_buf[i]);
 	}
 }
 
@@ -116,8 +162,7 @@ static uint8_t get_cmd_index(uint8_t value)
 	uint8_t i;
 
 	for (i = 0; i < LAST_UART_CMD; i++) {
-		if (g_uart_cmds[i].cmd == value ||
-				g_uart_cmds[i].cmd == 0)
+		if (g_uart_cmds[i].cmd == value)
 			break;
 	}
 
@@ -139,15 +184,26 @@ static uint32_t dec_to_hex(uint32_t dec)
 static void send_OK(void)
 {
 	uint8_t ok[4], i;
+	u_raw_data *tx_data;
 
 	ok[0] = u_cmd;
-	ok[1] = u_data_len;
+	ok[1] = 0x02;
 	ok[2] = 'O';
 	ok[3] = 'K';
 
-	for (i = 0; i < 4; i++) {
-		USART_SendData(USART1, ok[i]);
+	tx_data = (u_raw_data *)u_tx_buf;
+	tx_data->preamble1 = UART_PREAMBLE1;
+	tx_data->preamble2 = UART_PREAMBLE2;
+	tx_data->len = 8;
+	tx_data->response = UART_RES_R;
+	tx_data->id_l = recv_cmd_id[0];
+	tx_data->id_h = recv_cmd_id[1];
+	memcpy(&(tx_data->cmd), ok, 4);
+	u_tx_buf[tx_data->len + 2] = checksum(tx_data->len + 2, u_tx_buf);
+
+	for (i = 0; i < tx_data->len + 3; i++) {
 		while (USART_GetFlagStatus(USART1, USART_FLAG_TC) == RESET);
+		USART_SendData(USART1, u_tx_buf[i]);
 	}
 }
 
@@ -160,6 +216,9 @@ static void parse_uart_data(void)
 		goto no_cmd;
 
 	switch (u_cmd) {
+		case 0x00:
+			memcpy(cur_date, u_buf, DATE_BUF_LEN);
+			break;
 		case 0x01:
 		case 0x0C:
 		case 0x0D:
@@ -267,8 +326,6 @@ static void parse_uart_data(void)
 			if (u_buf[2] != 0xBB)
 				goto no_cmd;
 
-			memcpy(cur_date, u_buf + 3, DATE_BUF_LEN);
-
 			v_fuel_consum_2_correct =
 				u_buf[0] * 1000 + (u_buf[1] & 0x7F) * 10;
 			v_fuel_consum_1_correct =
@@ -310,8 +367,6 @@ static void parse_uart_data(void)
 					u_buf[2] == 0xBB)
 				goto no_cmd;
 
-			memcpy(cur_date, u_buf + 3, DATE_BUF_LEN);
-
 			v_fuel_consum_1_travel_time =
 				(u_buf[10] << 24) | (u_buf[11] << 16) | u_buf[12];
 			tmp = (u_buf[13] << 24) | (u_buf[14] << 16) |
@@ -341,6 +396,40 @@ static void parse_uart_data(void)
 	}
 no_cmd:
 	return;
+}
+
+static void parse_uart_raw_data(void)
+{
+	u_raw_data *data;
+	data = (u_raw_data *)u_raw_buf;
+	// preamble error
+	if (data->preamble1 != UART_PREAMBLE1 || data->preamble2 != UART_PREAMBLE2)
+		return;
+
+	// checksum error
+	if (u_raw_buf[u_raw_data_len + 2] != checksum(u_raw_data_len + 2, u_raw_buf))
+		return;
+
+	if (data->response == UART_RES_M) {
+		recv_cmd_id[0] = data->id_l;
+		recv_cmd_id[1] = data->id_h;
+	}
+
+	u_cmd = data->cmd;
+	u_data_len = data->cmd_len;
+	u_cmd_index = get_cmd_index(u_cmd);
+	if (u_cmd_index >= LAST_UART_CMD
+			|| (data->len - (u_data_len & 0x7F)) != 6)
+		return;
+
+	if (!(u_data_len == 0x02 || u_data_len == 0x82
+				|| u_data_len == g_uart_cmds[u_cmd_index].length
+				|| u_data_len == (0x7F & g_uart_cmds[u_cmd_index].length)
+				|| u_data_len == 0xFF))
+		return;
+
+	u_buf = &(data->cmd_data);
+	parse_uart_data();
 }
 
 // use TIM3 as auto loop timer, 100us
@@ -467,6 +556,67 @@ void USART1_IRQHandler(void)
 		value = USART_ReceiveData(USART1);
 		switch (u_state) {
 			case UART_IDLE:
+				if (value == UART_PREAMBLE1) {
+					u_buf_offset = 0;
+					u_raw_buf[u_buf_offset++] = value;
+					u_state = UART_PREA;
+					LED0 = 0;
+					timo_timer_start(5000); //500ms
+				}
+				break;
+			case UART_PREA:
+				if (value == UART_PREAMBLE2) {
+					u_raw_buf[u_buf_offset++] = value;
+					u_state = UART_RCV1;
+				} else if (value == UART_PREAMBLE1) {
+					u_buf_offset = 0;
+					u_raw_buf[u_buf_offset++] = value;
+				} else {
+					u_buf_offset = 0;
+					u_state = UART_IDLE;
+					LED0 = 1;
+					timo_timer_stop();
+				}
+				break;
+			case UART_RCV1:
+				u_raw_data_len = value;
+				u_raw_buf[u_buf_offset++] = value;
+				u_state = UART_RCV2;
+				break;
+			case UART_RCV2:
+				u_raw_buf[u_buf_offset++] = value;
+
+				if (u_buf_offset == MAX_U_BUF_LEN) {
+					u_state = UART_IDLE;
+					LED0 = 1;
+					timo_timer_stop();
+				}
+
+				if (u_buf_offset == u_raw_data_len + 3) {
+					parse_uart_raw_data();
+					u_state = UART_IDLE;
+					LED0 = 1;
+					timo_timer_stop();
+					break;
+				}
+				break;
+			default:
+				u_buf_offset = 0;
+				u_state = UART_IDLE;
+				LED0 = 1;
+				timo_timer_stop();
+				break;
+		}
+	}
+}
+#if 0
+void USART1_IRQHandler(void)
+{
+	uint8_t value;
+	if(USART_GetITStatus(USART1, USART_IT_RXNE) != RESET) {
+		value = USART_ReceiveData(USART1);
+		switch (u_state) {
+			case UART_IDLE:
 				u_cmd_index = get_cmd_index(value);
 				if (u_cmd_index >= LAST_UART_CMD)
 					break;
@@ -530,6 +680,7 @@ void USART1_IRQHandler(void)
 	}
 
 }
+#endif
 
 static void gen_file_name(uint8_t *car_plate, uint8_t *cur_date, TCHAR *filename)
 {
@@ -547,8 +698,10 @@ static void gen_file_name(uint8_t *car_plate, uint8_t *cur_date, TCHAR *filename
 	}
 
 	filename[offset++] = '_';
+	/*
 	filename[offset++] = '2';
 	filename[offset++] = '0';
+	*/
 
 	for (i = 0; i < DATE_BUF_LEN; i++) {
 		filename[offset++] = ((cur_date[i] & 0xF0) >> 4) + 48;
@@ -571,8 +724,8 @@ int query_store_history(void)
 	TCHAR filename[32];
 
 	// get current date
-	send_cmd(SENSOR_DATA_TOT_TRIP, NULL, 0);
-	if (wait_for_cmd(SENSOR_DATA_TOT_TRIP))
+	send_cmd(GET_DATE_TIME, NULL, 0);
+	if (wait_for_cmd(GET_DATE_TIME))
 		return 1;
 
 	send_cmd(QUERY_DATA_TOT_CUR_ID, NULL, 0);
