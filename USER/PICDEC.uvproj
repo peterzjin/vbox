@@ -343,7 +343,7 @@
             <uThumb>0</uThumb>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>STM32F10X_MD,USE_STDPERIPH_DRIVER</Define>
+              <Define>STM32F10X_HD,USE_STDPERIPH_DRIVER</Define>
               <Undefine></Undefine>
               <IncludePath>..\HARDWARE\LED;..\SYSTEM\delay;..\SYSTEM\sys;..\SYSTEM\usart;..\USER;..\STM32F10x_FWLib\inc;..\CORE;..\HARDWARE\KEY;..\HARDWARE\EXTI;..\HARDWARE\WDG;..\HARDWARE\TIMER;..\HARDWARE\PWM;..\HARDWARE\LCD;..\HARDWARE\WKUP;..\HARDWARE\ADC;..\HARDWARE\TSensor;..\HARDWARE\IIC;..\HARDWARE\24CXX;..\HARDWARE\SPI;..\HARDWARE\FLASH;..\HARDWARE\TOUCH;..\HARDWARE\MMC_SD;..\FATFS\src;..\FATFS\exfuns;..\TEXT;..\TEXT;..\PICDEC</IncludePath>
             </VariousControls>
@@ -536,9 +536,9 @@
               <FilePath>..\CORE\core_cm3.c</FilePath>
             </File>
             <File>
-              <FileName>startup_stm32f10x_md.s</FileName>
+              <FileName>startup_stm32f10x_hd.s</FileName>
               <FileType>2</FileType>
-              <FilePath>..\CORE\startup_stm32f10x_md.s</FilePath>
+              <FilePath>..\CORE\startup_stm32f10x_hd.s</FilePath>
             </File>
           </Files>
         </Group>
