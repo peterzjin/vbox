@@ -475,6 +475,8 @@ void start_cmd_loop(uint16_t arr, uint8_t cmd_index, uint8_t* param, uint8_t par
 	if (cmd_index >= LAST_UART_CMD)
 		return;
 
+	send_cmd(cmd_index, param, param_len);
+
 	loop_cmd_index = cmd_index;
 	loop_cmd_param = param;
 	loop_cmd_param_len = param_len;
