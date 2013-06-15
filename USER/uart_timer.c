@@ -546,6 +546,7 @@ void TIM2_IRQHandler(void)
 		// reset the uart state to UART_IDLE
 		u_state = UART_IDLE;
 		LED0 = 1;
+		timo_timer_stop();
 	}
 }
 
