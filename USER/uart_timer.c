@@ -33,7 +33,6 @@ typedef struct uart_cmd_struct
 static uint8_t u_state = UART_IDLE;
 static uint8_t u_cmd;
 static uint8_t u_cmd_index;
-//static uint8_t u_cmd_dft_len;
 static uint8_t u_data_len;
 static uint8_t *u_buf;
 static uint8_t u_raw_data_len;
@@ -41,7 +40,7 @@ static uint8_t u_raw_buf[MAX_U_BUF_LEN];
 static uint8_t u_buf_offset;
 static uint8_t u_tx_buf[MAX_U_BUF_LEN];
 static uint8_t recv_cmd_id[2];
-static uint16_t send_cmd_id = 0x122C;
+static uint16_t send_cmd_id = 0;
 
 // used for SD storage
 static uint16_t data_tot_num;
@@ -179,6 +178,15 @@ static uint32_t dec_to_hex(uint32_t dec)
 	}
 
 	return hex;
+}
+
+#define MAX_DAY_TO_SEC (24 * 3600)
+static uint32_t date_to_sec(uint8_t hour, uint8_t minu, uint8_t sec)
+{
+	if (hour > 23 || minu > 59 || sec > 59)
+		return MAX_DAY_TO_SEC;
+
+	return (hour * 3600 + minu * 60 + sec);
 }
 
 static void send_OK(void)
@@ -326,16 +334,23 @@ static void parse_uart_data(void)
 			if (u_buf[2] != 0xBB)
 				goto no_cmd;
 
+			v_data_real_time =
+				date_to_sec(dec_to_hex(u_buf[6]),
+						dec_to_hex(u_buf[7]),
+						dec_to_hex(u_buf[8]));
+			if (v_data_real_time == MAX_DAY_TO_SEC)
+				goto no_cmd;
+
 			v_fuel_consum_2_correct =
 				u_buf[0] * 1000 + (u_buf[1] & 0x7F) * 10;
 			v_fuel_consum_1_correct =
 				u_buf[41] * 1000 + (u_buf[42] & 0x7F) * 10;
 
 			tmp = u_buf[43];
-			v_sensor_A_status = (tmp & 0x10) ? ((tmp & 0x01) ? 2 : 1) : 0; 
-			v_sensor_B_status = (tmp & 0x20) ? ((tmp & 0x02) ? 2 : 1) : 0; 
-			v_sensor_C_status = (tmp & 0x40) ? ((tmp & 0x04) ? 2 : 1) : 0; 
-			v_sensor_D_status = (tmp & 0x80) ? ((tmp & 0x08) ? 2 : 1) : 0; 
+			v_sensor_A_status = (tmp & 0x10) ? ((tmp & 0x01) ? 2 : 1) : 0;
+			v_sensor_B_status = (tmp & 0x20) ? ((tmp & 0x02) ? 2 : 1) : 0;
+			v_sensor_C_status = (tmp & 0x40) ? ((tmp & 0x04) ? 2 : 1) : 0;
+			v_sensor_D_status = (tmp & 0x80) ? ((tmp & 0x08) ? 2 : 1) : 0;
 			
 			tmp = (u_buf[9] << 24) | (u_buf[10] << 16) |
 				(u_buf[11] << 8) | u_buf[12];
@@ -363,9 +378,22 @@ static void parse_uart_data(void)
 			v_sensor_D_Tot = dec_to_hex(tmp);
 			break;
 		case 0x3D:
-			if (u_buf[0] == 0x0 && u_buf[1] == 0x0 &&
-					u_buf[2] == 0xBB)
+			if (!(u_buf[0] == 0x0 && u_buf[1] == 0x0 &&
+					u_buf[2] == 0xBB))
 				goto no_cmd;
+
+			v_data_real_time =
+				date_to_sec(dec_to_hex(u_buf[6]),
+						dec_to_hex(u_buf[7]),
+						dec_to_hex(u_buf[8]));
+			if (v_data_real_time == MAX_DAY_TO_SEC)
+				goto no_cmd;
+
+			tmp = u_buf[9];
+			v_sensor_A_status = (tmp & 0x10) ? ((tmp & 0x01) ? 2 : 1) : 0;
+			v_sensor_B_status = (tmp & 0x20) ? ((tmp & 0x02) ? 2 : 1) : 0;
+			v_sensor_C_status = (tmp & 0x40) ? ((tmp & 0x04) ? 2 : 1) : 0;
+			v_sensor_D_status = (tmp & 0x80) ? ((tmp & 0x08) ? 2 : 1) : 0;
 
 			v_fuel_consum_1_travel_time =
 				(u_buf[10] << 24) | (u_buf[11] << 16) | u_buf[12];
@@ -377,6 +405,14 @@ static void parse_uart_data(void)
 			tmp = (u_buf[20] << 24) | (u_buf[21] << 16) |
 				(u_buf[22] << 8) | u_buf[23];
 			v_fuel_consum_2_travel_consum = dec_to_hex(tmp);
+			v_fuel_consum_1_trip = u_buf[24] | (u_buf[25] << 8)
+				| (u_buf[26] << 16) | (u_buf[27] << 24);
+			v_fuel_consum_1_tot = u_buf[29] | (u_buf[30] << 8)
+				| (u_buf[31] << 16) | (u_buf[32] << 24);
+			v_fuel_consum_2_trip = u_buf[34] | (u_buf[35] << 8)
+				| (u_buf[36] << 16) | (u_buf[37] << 24);
+			v_fuel_consum_2_tot = u_buf[39] | (u_buf[40] << 8)
+				| (u_buf[41] << 16) | (u_buf[42] << 24);
 			break;
 		case 0x40:
 			if (u_buf[0] > 0x08)
