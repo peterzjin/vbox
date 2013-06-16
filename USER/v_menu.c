@@ -61,14 +61,20 @@ uint32_t v_sensor_instant_fuel_consum_2_alarm; //0x1B
 
 uint32_t v_sensor_fuel_consum_sample_time;	//0x19
 uint32_t v_sensor_flow_smaple_time;			//0x09
-uint32_t v_fuel_consum_1_correct;			 	//0x3C|0x3F
+
+uint32_t v_fuel_consum_1_correct;			 	//0x07|0x08	 noneed
 uint32_t v_fuel_consum_2_correct;
-//0:not in use 1:normal 2:abnormal
+
+//0x3C|0x3F|0x3D
+uint32_t v_data_real_time;
+//0:not in use 1:normal 2:error
 uint32_t v_sensor_A_status;
 uint32_t v_sensor_B_status;
 uint32_t v_sensor_C_status;
 uint32_t v_sensor_D_status;
-uint32_t v_sensor_A_Trip;					 
+
+//0x3C|0x3F
+uint32_t v_sensor_A_Trip;
 uint32_t v_sensor_B_Trip;
 uint32_t v_sensor_C_Trip;
 uint32_t v_sensor_D_Trip;
@@ -76,11 +82,18 @@ uint32_t v_sensor_A_Tot;
 uint32_t v_sensor_B_Tot;
 uint32_t v_sensor_C_Tot;
 uint32_t v_sensor_D_Tot;
+
 //0x3D
-uint32_t v_fuel_consum_1_travel_time;	
+uint32_t v_fuel_consum_1_travel_time;
 uint32_t v_fuel_consum_1_travel_consum;
+uint32_t v_fuel_consum_1_trip;
+uint32_t v_fuel_consum_1_tot;
 uint32_t v_fuel_consum_2_travel_time;
 uint32_t v_fuel_consum_2_travel_consum;
+uint32_t v_fuel_consum_2_trip;
+uint32_t v_fuel_consum_2_tot;
+
+static uint32_t v_data_latest_real_time;
 static uint32_t v_sensor_latest_A_Trip;
 static uint32_t v_sensor_latest_A_Tot;
 static uint32_t v_sensor_latest_B_Trip;
@@ -89,6 +102,12 @@ static uint32_t v_sensor_latest_C_Trip;
 static uint32_t v_sensor_latest_C_Tot;
 static uint32_t v_sensor_latest_D_Trip;
 static uint32_t v_sensor_latest_D_Tot;
+
+static uint32_t v_fuel_consum_1_latest_travel_time;
+static uint32_t v_fuel_consum_2_latest_travel_time;
+static uint32_t v_fuel_consum_1_latest_tot;
+static uint32_t v_fuel_consum_2_latest_tot;
+
 static void reset_all_data(void){
 //0:not in use 1:normal 2:abnormal
 #ifdef DEBUG
