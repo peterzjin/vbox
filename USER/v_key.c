@@ -10,6 +10,7 @@
 #include "v_menu.h"
 #include "sys.h"
 #include "led.h"
+#include "v_buzz.h"
 
 #define V_KEY_NONE		    0x00
 
@@ -170,9 +171,16 @@ void v_key_scan(void)
  
 // 	GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE);
 }
-static char v_sprintf_buff[64];
 void v_key_judge(void)
 {
+	if(V_KEY_NONE == v_key){
+		return;
+	}
+	v_buzz_key(); 
+	if(v_menu_show_all_flag){
+		v_menu_show_all_timer_stop();
+		return ;
+	}
 	switch(v_key){
 		case V_KEY_ENTER_SHORT:
 //			Show_Str(60,130,"V_KEY_ENTER_SHORT",16,0);

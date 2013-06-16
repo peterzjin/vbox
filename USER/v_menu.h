@@ -8,7 +8,7 @@
 #define __V_MENU_H__
 #include "stm32f10x.h"
 
-#define V_MENU_DATA_LOOP_TIME	60000          //1s
+#define V_MENU_DATA_LOOP_TIME	10000          //1s
 
 extern uint32_t v_menu_language;					//0x0E
 extern uint32_t v_menu_display_format;				//0x11
@@ -66,6 +66,7 @@ void v_menu_up_short(void);
 void v_menu_down_short(void);
 
 void v_menu_show(void);
-void v_do_function_setting_show_all_close_enter(void);
+void v_menu_show_all_timer_stop(void);
+extern uint8_t v_menu_show_all_flag; //0:donothing, 1:changed by timer 
 #endif
 
