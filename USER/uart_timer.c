@@ -396,12 +396,12 @@ static void parse_uart_data(void)
 			v_sensor_D_status = (tmp & 0x80) ? ((tmp & 0x08) ? 2 : 1) : 0;
 
 			v_fuel_consum_1_travel_time =
-				(u_buf[10] << 24) | (u_buf[11] << 16) | u_buf[12];
+				(u_buf[10] << 16) | (u_buf[11] << 8) | u_buf[12];   //yfeng mod
 			tmp = (u_buf[13] << 24) | (u_buf[14] << 16) |
 				(u_buf[15] << 8) | u_buf[16];
 			v_fuel_consum_1_travel_consum = dec_to_hex(tmp);
 			v_fuel_consum_2_travel_time =
-				(u_buf[17] << 24) | (u_buf[18] << 16) | u_buf[19];
+				(u_buf[17] << 16) | (u_buf[18] << 8) | u_buf[19];  //yfeng mod
 			tmp = (u_buf[20] << 24) | (u_buf[21] << 16) |
 				(u_buf[22] << 8) | u_buf[23];
 			v_fuel_consum_2_travel_consum = dec_to_hex(tmp);
@@ -461,7 +461,7 @@ static void parse_uart_raw_data(void)
 	if (!(u_data_len == 0x02 || u_data_len == 0x82
 				|| u_data_len == g_uart_cmds[u_cmd_index].length
 				|| u_data_len == (0x7F & g_uart_cmds[u_cmd_index].length)
-				|| u_data_len == 0xFF))
+				|| g_uart_cmds[u_cmd_index].length == 0xFF)) 
 		return;
 
 	u_buf = &(data->cmd_data);

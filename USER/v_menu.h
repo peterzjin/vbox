@@ -8,7 +8,7 @@
 #define __V_MENU_H__
 #include "stm32f10x.h"
 
-#define V_MENU_DATA_LOOP_TIME	10000          //1s
+#define V_MENU_DATA_LOOP_TIME	20000          //1s
 
 extern uint32_t v_menu_language;					//0x0E
 extern uint32_t v_menu_display_format;				//0x11

@@ -116,6 +116,10 @@ void v_key_scan(void)
 			}
 		}else if(V_KEY_ENTER==V_KEY_ENTER_DOWN)
 		{
+			uint8_t flag_3S_over = 0;
+			uint8_t flag_6S_over = 0;
+			uint8_t flag_15S_over = 0;
+
 			v_key_down = 1;
 			for(i=0;i<V_KEY_CHECK_15S+1;i++){
 				if(V_KEY_ENTER==V_KEY_ENTER_UP)	
@@ -124,6 +128,34 @@ void v_key_scan(void)
 					break;
 				}
 				delay_ms(V_KEY_CHECK_INTERVAL);
+				//add 
+				{
+			    	if(i>V_KEY_CHECK_15S){
+						if(flag_15S_over == 0)
+						{
+							flag_15S_over = 1;						
+							v_menu_enter_15s();
+							v_buzz_key();
+						}
+					}else if(i>V_KEY_CHECK_6S){
+						if(flag_6S_over == 0)
+						{
+							flag_6S_over = 1;						
+							v_menu_enter_6s();
+							v_buzz_key();
+						}
+					}else if(i>V_KEY_CHECK_3S){
+						if(flag_3S_over == 0)
+						{
+							flag_3S_over = 1;
+							v_menu_enter_3s();
+							v_buzz_key();
+						}
+					}else{	    	
+						//v_key = V_KEY_ENTER_SHORT;
+					}
+					v_menu_show();
+				}
 			}
 //			GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE);
 			if(i>V_KEY_CHECK_15S){

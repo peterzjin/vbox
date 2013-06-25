@@ -17,8 +17,8 @@
 
 //#define DEBUG
 
-#define V_MENU_LANGUAGE_EN		0x00
-#define V_MENU_LANGUAGE_CN		0x01
+#define V_MENU_LANGUAGE_EN		0x01
+#define V_MENU_LANGUAGE_CN		0x00
 
 #define V_MENU_DISPLAY_FORMAT_FLOW_L      	0x00
 #define V_MENU_DISPLAY_FORMAT_PULSE		0x01
@@ -308,11 +308,19 @@ static void v_menu_show_wating(){
 }
 static void v_menu_show_time(uint8_t line, uint32_t time){
 	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
-		sprintf(v_sprintf_buff,"  %02dHH%02dMM%02dSS",
-		time>>16&0xFF,time>>8&0xFF,time&0xFF);
+//		sprintf(v_sprintf_buff,"  %02dHH%02dMM%02dSS",
+//		time>>16&0xFF,time>>8&0xFF,time&0xFF);
+		sprintf(v_sprintf_buff,"  %1d%1dHH%1d%1dMM%1d%1dSS",
+		(time>>(16+4))&0x0F, (time>>(16))&0x0F, 
+		(time>>(8+4))&0x0F, (time>>8)&0x0F,
+		(time>>(4))&0x0F, (time)&0x0F);		
+
 	}else if(v_menu_language ==  V_MENU_LANGUAGE_CN){
-		sprintf(v_sprintf_buff,"  %02d时%02d分%02d秒",
-		time>>16&0xFF,time>>8&0xFF,time&0xFF);
+		sprintf(v_sprintf_buff,"  %1d%1d时%1d%1d分%1d%1d秒",
+		//time>>16&0xFF,time>>8&0xFF,time&0xFF);
+		(time>>(16+4))&0x0F, (time>>(16))&0x0F, 
+		(time>>(8+4))&0x0F, (time>>8)&0x0F,
+		(time>>(4))&0x0F, (time)&0x0F);		
 	}
 	v_menu_show_str(line,v_sprintf_buff);
 }
@@ -1060,43 +1068,43 @@ static void v_do_function_sensor_C_D_flow(void){
 
 /*do function for menu setting*/
 static void v_do_function_setting_select_display_format(void){
-	v_menu_show_wating();
+	//v_menu_show_wating();
 	v_menu_in_display = 0;
 }
 static void v_do_function_setting_select_show_all(void){
-	v_menu_show_wating();
+	//v_menu_show_wating();
 }
 static void v_do_function_setting_display_format_flow_L(void){
-	v_menu_show_wating();
+	//v_menu_show_wating();
 }
 static void v_do_function_setting_display_format_pulse(void){
-	v_menu_show_wating();
+	//v_menu_show_wating();
 }
 static void v_do_function_setting_show_all_set(void){
-	v_menu_show_wating();
+	//v_menu_show_wating();
 }
 static void v_do_function_setting_show_all_close(void){
-	v_menu_show_wating();
+	//v_menu_show_wating();
 }
 static void v_init_menu_display_struct_table(void);
 static void v_do_function_setting_display_format_flow_L_enter(void){
-	v_menu_show_wating();
+	//v_menu_show_wating();
 	v_menu_display_format = V_MENU_DISPLAY_FORMAT_FLOW_L;
 	v_init_menu_display_struct_table();
 }
 static void v_do_function_setting_display_format_pulse_enter(void){
-	v_menu_show_wating();
+	//v_menu_show_wating();
 	v_menu_display_format = V_MENU_DISPLAY_FORMAT_PULSE;
 	v_init_menu_display_struct_table();
 }
 static void v_do_function_setting_show_all_set_enter(void){
-	v_menu_show_wating();
+	//v_menu_show_wating();
 	v_menu_show_all_time = V_MENU_SETTING_LOCAL_SHOW_ALL_TIME;	
 	v_init_menu_display_struct_table();
 	v_menu_show_all_start();
 }
 void v_do_function_setting_show_all_close_enter(void){
-	v_menu_show_wating();
+	//v_menu_show_wating();
 	v_menu_show_all_time = 0;
 	v_menu_timer_stop();
 	v_init_menu_display_struct_table();
@@ -1146,6 +1154,7 @@ static v_init_menu_struct(v_menu_struct_t *source_struct,
 	source_struct->do_function = do_function;
 	source_struct->menu_show = menu_show;
 }
+
 static void v_init_menu_show_struct_3_flow_L_table(void){
     if(v_sensor_work_mode>0x04 && v_sensor_work_mode<0x08){
         v_init_menu_struct(
