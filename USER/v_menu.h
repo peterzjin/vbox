@@ -10,6 +10,11 @@
 
 #define V_MENU_DATA_LOOP_TIME	20000          //1s
 
+//0: disable 1: enable
+extern uint32_t v_menu_sleep;                                     //0x0f
+extern uint32_t v_menu_deep_sleep;                          //?
+extern uint32_t v_menu_reset_tot_enable;			//0x01
+
 extern uint32_t v_menu_language;					//0x0E
 extern uint32_t v_menu_display_format;				//0x11
 extern uint32_t v_menu_show_all_time;				//0x20

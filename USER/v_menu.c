@@ -57,11 +57,17 @@ typedef struct v_menu_struct
 static v_menu_struct_t *v_cur_menu;
 
 uint8_t v_menu_show_all_flag = 0;
+static v_menu_show_all_time_origin;
 static uint8_t v_menu_in_display = 1;		//in diplay flag
 static uint32_t v_menu_show_last_value_0;
 static uint32_t v_menu_show_last_value_1;
 static uint32_t v_menu_show_error_count_0;
 static uint32_t v_menu_show_error_count_1;
+
+//0: disable 1: enable
+uint32_t v_menu_sleep;                                     //0x0f
+uint32_t v_menu_deep_sleep;                          //?
+uint32_t v_menu_reset_tot_enable;			//0x01
 
 uint32_t v_menu_language;					//0x0E
 uint32_t v_menu_display_format;				//0x11
@@ -1571,8 +1577,8 @@ static void v_menu_enter_save_data_failed(void){
 }
 
 static void v_menu_enter_reset_all_trip(void){
-	send_cmd(ENABLE_DISABLE_RESET,NULL,NULL);
-	delay_ms(10);
+//	send_cmd(ENABLE_DISABLE_RESET,NULL,NULL);
+//	delay_ms(10);
 	send_cmd(TRIP_RESET,NULL,NULL);
 
 }
