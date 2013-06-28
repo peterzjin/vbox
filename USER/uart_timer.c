@@ -62,28 +62,33 @@ uint32_t recv_cmd;
 // support cmds
 uart_cmd_t g_uart_cmds[] = 
 {
-	{0x00, 0x87, {0x00, 0x80, CMD_DATA_END}, 2},
-	{0x01, 0x81, {0x01, 0x01, 0x01, CMD_DATA_END}, 3},
-	{0x06, 0xFF, {0x06, 0x80, CMD_DATA_END}, 2},
-	{0x07, 0x82, {0x07, 0x80, CMD_DATA_END}, 2},
-	{0x08, 0x82, {0x08, 0x80, CMD_DATA_END}, 2},
-	{0x09, 0x81, {0x09, 0x80, CMD_DATA_END}, 2},
-	{0x0C, 0x02, {0x0C, 0x00, CMD_DATA_END}, 2},
+	{0x00, 0x87, {0x00, 0x80, CMD_DATA_END},             2},
+	{0x01, 0x81, {0x01, 0x80, CMD_DATA_END},             2},
+	{0x06, 0xFF, {0x06, 0x80, CMD_DATA_END},             2},
+	{0x07, 0x82, {0x07, 0x80, CMD_DATA_END},             2},
+	{0x08, 0x82, {0x08, 0x80, CMD_DATA_END},             2},
+	{0x09, 0x81, {0x09, 0x80, CMD_DATA_END},             2},
+	{0x0C, 0x02, {0x0C, 0x00, CMD_DATA_END},             2},
 	{0x0D, 0x02, {0x0D, 0x02, 0x47, 0x54, CMD_DATA_END}, 4},
-	{0x0E, 0x81, {0x0E, 0x80, CMD_DATA_END}, 2},
-	{0x11, 0x81, {0x11, 0x80, CMD_DATA_END}, 2},
-	{0x18, 0x81, {0x18, 0x80, CMD_DATA_END}, 2},
-	{0x19, 0x81, {0x19, 0x80, CMD_DATA_END}, 2},
-	{0x1A, 0x81, {0x1A, 0x80, CMD_DATA_END}, 2},
-	{0x1B, 0x81, {0x1B, 0x80, CMD_DATA_END}, 2},
-	{0x20, 0x81, {0x20, 0x80, CMD_DATA_END}, 2},
-	{0x31, 0x84, {0x31, 0x80, CMD_DATA_END}, 2},
-	{0x3A, 0xAC, {0x3A, 0x82, CMD_DATA_END}, 2},
-	//{0x3B, 0xAC, {0x3B, 0x82, 0x00, 0x00, CMD_DATA_END}, 4},
+	{0x0E, 0x81, {0x0E, 0x80, CMD_DATA_END},             2},
+	{0x11, 0x81, {0x11, 0x80, CMD_DATA_END},             2},
+	{0x18, 0x81, {0x18, 0x80, CMD_DATA_END},             2},
+	{0x19, 0x81, {0x19, 0x80, CMD_DATA_END},             2},
+	{0x1A, 0x81, {0x1A, 0x80, CMD_DATA_END},             2},
+	{0x1B, 0x81, {0x1B, 0x80, CMD_DATA_END},             2},
+	{0x20, 0x81, {0x20, 0x80, CMD_DATA_END},             2},
+	{0x31, 0x84, {0x31, 0x80, CMD_DATA_END},             2},
+	{0x3A, 0xAC, {0x3A, 0x82, CMD_DATA_END},             2},
+//	{0x3B, 0xAC, {0x3B, 0x82, 0x00, 0x00, CMD_DATA_END}, 4},
 	{0x3C, 0xAC, {0x3C, 0x82, 0x00, 0x00, CMD_DATA_END}, 4},
 	{0x3D, 0xAC, {0x3D, 0x82, 0x00, 0x00, CMD_DATA_END}, 4},
 	{0x3F, 0xAC, {0x3F, 0x82, 0x00, 0x00, CMD_DATA_END}, 4},
-	{0x40, 0x81, {0x40, 0x80, CMD_DATA_END}, 2},
+	{0x40, 0x81, {0x40, 0x80, CMD_DATA_END},             2},
+	{0xF0, 0x01, {CMD_DATA_END},                         0},
+// commands which needs another direction
+	{0x01, 0x01, {0x01, 0x01, 0x01, CMD_DATA_END},       3},
+	{0x11, 0x01, {0x11, 0x01, CMD_DATA_END},             2},
+	{0x20, 0x01, {0x20, 0x01, CMD_DATA_END},             2},
 };
 
 typedef struct u_raw_data_struct
@@ -112,7 +117,7 @@ void send_cmd(uint8_t cmd_index, uint8_t* param, uint8_t param_len)
 	int i;
 	u_raw_data *tx_data;
 
-	if (cmd_index >= LAST_UART_CMD)
+	if (cmd_index >= LAST_UART_CMD || g_uart_cmds[cmd_index].cmd_len == 0)
 		return;
 
 	cmd_data_available &= ~(1 << cmd_index);
@@ -228,6 +233,15 @@ static void parse_uart_data(void)
 			memcpy(cur_date, u_buf, DATE_BUF_LEN);
 			break;
 		case 0x01:
+			if (u_data_len == 0x02 && u_buf[0] == 'O' && u_buf[1] == 'K')
+				break;
+
+			if (u_buf[0] > 1)
+				goto no_cmd;
+
+			v_menu_reset_tot_enable = u_buf[0];
+
+			break;
 		case 0x0C:
 		case 0x0D:
 			break;
@@ -274,8 +288,12 @@ static void parse_uart_data(void)
 				is_cmd = 1;
 			break;
 		case 0x11:
+			if (u_data_len == 0x02 && u_buf[0] == 'O' && u_buf[1] == 'K')
+				break;
+
 			if (u_buf[0] > 1)
 				goto no_cmd;
+
 			v_menu_display_format = u_buf[0];
 
 			if (u_data_len == 0x01)
@@ -296,6 +314,9 @@ static void parse_uart_data(void)
 			v_sensor_instant_fuel_consum_2_alarm = u_buf[0];
 			break;
 		case 0x20:
+			if (u_data_len == 0x02 && u_buf[0] == 'O' && u_buf[1] == 'K')
+				break;
+
 			v_menu_show_all_time = u_buf[0];
 
 			if (u_data_len == 0x01)
@@ -419,6 +440,12 @@ static void parse_uart_data(void)
 				goto no_cmd;
 
 			v_sensor_work_mode = u_buf[0];
+			break;
+		case 0xF0:
+			if (u_buf[0] > 1)
+				goto no_cmd;
+
+			v_menu_sleep = u_buf[0];
 			break;
 		default:
 			goto no_cmd;

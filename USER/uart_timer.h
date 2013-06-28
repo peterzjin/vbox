@@ -16,7 +16,7 @@ int query_store_history(void);
 
 enum e_uart_cmds {
 	GET_DATE_TIME,			//0x00
-	ENABLE_DISABLE_RESET,		//0x01
+	GET_RESET_ENABLE,		//0x01
 	CAR_PLATE,			//0x06
 	FC1_CORRECTION,			//0x07
 	FC2_CORRECTION,			//0x08
@@ -37,6 +37,11 @@ enum e_uart_cmds {
 	SENSOR_DATA_TOT_TRIP,		//0x3D
 	SENSOR_DATA_LITER,		//0x3F
 	SENSOR_WOKR_MODE,		//0x40
+	REQUEST_SLEEP,			//0xF0
+// commands which needs another direction
+	ENABLE_DISABLE_RESET,		//0x01
+	SET_DISPLAY_FORMAT,		//0x11
+	SET_DISPLAY_DELAY_TIME,		//0x20
 	LAST_UART_CMD
 };
 
