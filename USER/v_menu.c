@@ -15,7 +15,7 @@
 #include "uart_timer.h"
 #include "v_menu_timer.h"
 
-//#define DEBUG
+#define DEBUG
 
 #define V_MENU_LANGUAGE_EN		0x01
 #define V_MENU_LANGUAGE_CN		0x00
@@ -25,7 +25,7 @@
 #ifdef DEBUG
 #define V_MENU_SETTING_LOCAL_SHOW_ALL_TIME 30
 #else
-#define V_MENU_SETTING_LOCAL_SHOW_ALL_TIME	3600	//60m
+#define V_MENU_SETTING_LOCAL_SHOW_ALL_TIME	60	//60m
 #endif
 
 #define V_MENU_MAX_REAL_TIME_S   86400
@@ -138,9 +138,9 @@ v_sensor_A_status = V_MENU_SENSOR_STATUS_NORMAL;
 v_sensor_B_status = V_MENU_SENSOR_STATUS_NORMAL;
 v_sensor_C_status = V_MENU_SENSOR_STATUS_NORMAL;
 v_sensor_D_status = V_MENU_SENSOR_STATUS_NORMAL;
-v_sensor_A_Trip = 23456;					 
+v_sensor_A_Trip = 12345;					 
 v_sensor_B_Trip = 12345;
-v_sensor_C_Trip = 23456;
+v_sensor_C_Trip = 12345;
 v_sensor_D_Trip = 12345;
 v_sensor_A_Tot = 23456;
 v_sensor_B_Tot = 12345;
@@ -238,8 +238,9 @@ void v_menu_show(void){
 }
 /*needed string*/
 static char *v_menu_lang_fuel;
-static char *v_menu_lang_trip;
+static char *v_menu_lang_fuel_trip;
 static char *v_menu_lang_instant_fuel_consum;
+static char *v_menu_lang_trip;
 static char *v_menu_lang_tot;
 static char *v_menu_lang_flow;
 static char *v_menu_lang_error;
@@ -249,21 +250,23 @@ static char *v_menu_lang_invalid_pulse = "--------";
 
 static void v_init_language_hint_string(void){
 	if(v_menu_language == V_MENU_LANGUAGE_EN){
-		v_menu_lang_fuel = "Fuel";
-		v_menu_lang_trip = "Trip";
+		v_menu_lang_fuel = " Fuel";
+		v_menu_lang_fuel_trip = " Trip";
 		v_menu_lang_instant_fuel_consum = "   Fuel(L/H)";
-		v_menu_lang_tot = "Tot ";
-		v_menu_lang_flow = "Flow";
+		v_menu_lang_trip = "_Trip";
+		v_menu_lang_tot = "_Tot ";
+		v_menu_lang_flow = "_Flow";
 		v_menu_lang_error = "_Error_…";
 		v_menu_lang_abnormal = "Abnormal";
 	}else if(v_menu_language == V_MENU_LANGUAGE_CN){
-		v_menu_lang_fuel = "油耗";
-		v_menu_lang_trip = "小计";
+		v_menu_lang_fuel = " 油耗";
+		v_menu_lang_fuel_trip = " 小计";
 		v_menu_lang_instant_fuel_consum = "  瞬时油耗(L/H)";
-		v_menu_lang_tot = "总计";
-		v_menu_lang_flow = "流速";
-		v_menu_lang_error = "__故障__…";
-		v_menu_lang_abnormal = "回油异常";
+		v_menu_lang_trip = " 小计";
+		v_menu_lang_tot = " 总计";
+		v_menu_lang_flow = " 流速";
+		v_menu_lang_error = "_故障__…";
+		v_menu_lang_abnormal = " 回油异常";
 	}
 }
 static char* get_invalid_str(){
@@ -501,11 +504,11 @@ static uint32_t v_get_fuel_consum_data(uint8_t equip_index,uint8_t type){
         			&& v_sensor_B_status == V_MENU_SENSOR_STATUS_NORMAL){
         			       if(type == V_MENU_SHOW_TYPE_TOT){
         			            fuel_consum = v_sensor_A_Tot-v_sensor_B_Tot;
-        			            return fuel_consum>0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRIP){
         			            fuel_consum = v_sensor_A_Trip-v_sensor_B_Trip;
-        			            return fuel_consum>0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRAVEL){
         			            return v_fuel_consum_1_travel_consum;
@@ -523,11 +526,11 @@ static uint32_t v_get_fuel_consum_data(uint8_t equip_index,uint8_t type){
         			if(v_sensor_A_status == V_MENU_SENSOR_STATUS_NORMAL){
         		 		if(type == V_MENU_SHOW_TYPE_TOT){
         			            fuel_consum = v_sensor_A_Tot;
-        			            return fuel_consum>0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRIP){
         			            fuel_consum = v_sensor_A_Trip;
-        			            return fuel_consum>0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRAVEL){
         			            return v_fuel_consum_1_travel_consum;
@@ -548,12 +551,12 @@ static uint32_t v_get_fuel_consum_data(uint8_t equip_index,uint8_t type){
         		 		{
         			            fuel_consum = v_sensor_A_Tot+v_sensor_B_Tot
         			                        -v_sensor_C_Tot-v_sensor_D_Tot;
-        			            return fuel_consum>0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRIP){
         			            fuel_consum = v_sensor_A_Trip+v_sensor_B_Trip
         			                        -v_sensor_C_Trip-v_sensor_D_Trip;
-        			            return fuel_consum>0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRAVEL){
         			            return v_fuel_consum_1_travel_consum;
@@ -575,12 +578,12 @@ static uint32_t v_get_fuel_consum_data(uint8_t equip_index,uint8_t type){
         		 		if(type == V_MENU_SHOW_TYPE_TOT){
         			            fuel_consum = v_sensor_A_Tot+v_sensor_B_Tot
         			                        -v_sensor_C_Tot;
-        			            return fuel_consum>0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRIP){
         			            fuel_consum = v_sensor_A_Trip+v_sensor_B_Trip
         			                        -v_sensor_C_Trip;
-        			            return fuel_consum>0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRAVEL){
         			            return v_fuel_consum_1_travel_consum;
@@ -601,12 +604,12 @@ static uint32_t v_get_fuel_consum_data(uint8_t equip_index,uint8_t type){
         		 		if(type == V_MENU_SHOW_TYPE_TOT){
         			            fuel_consum = v_sensor_A_Tot-v_sensor_B_Tot
         			                        -v_sensor_C_Tot;
-        			            return fuel_consum>0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRIP){
         			            fuel_consum = v_sensor_A_Trip-v_sensor_B_Trip
         			                        -v_sensor_C_Trip;
-        			            return fuel_consum>0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRAVEL){
         			            return v_fuel_consum_1_travel_consum;
@@ -628,12 +631,12 @@ static uint32_t v_get_fuel_consum_data(uint8_t equip_index,uint8_t type){
         		 		if(type == V_MENU_SHOW_TYPE_TOT){
         			            fuel_consum = v_sensor_A_Tot+v_sensor_B_Tot
         			                        +v_sensor_C_Tot-v_sensor_D_Tot;
-        			            return fuel_consum>0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRIP){
         			            fuel_consum = v_sensor_A_Trip+v_sensor_B_Trip
         			                        +v_sensor_C_Trip-v_sensor_D_Trip;
-        			            return fuel_consum>0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRAVEL){
         			            return v_fuel_consum_1_travel_consum;
@@ -653,11 +656,11 @@ static uint32_t v_get_fuel_consum_data(uint8_t equip_index,uint8_t type){
         			&& v_sensor_B_status == V_MENU_SENSOR_STATUS_NORMAL){
         		 		if(type == V_MENU_SHOW_TYPE_TOT){
         			            fuel_consum = v_sensor_A_Tot+v_sensor_B_Tot;
-        			            return fuel_consum>0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRIP){
         			            fuel_consum = v_sensor_A_Trip+v_sensor_B_Trip;
-        			            return fuel_consum>0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRAVEL){
         			            return v_fuel_consum_1_travel_consum;
@@ -677,12 +680,12 @@ static uint32_t v_get_fuel_consum_data(uint8_t equip_index,uint8_t type){
         		 		if(type == V_MENU_SHOW_TYPE_TOT){
         			            fuel_consum = v_sensor_A_Tot+v_sensor_B_Tot
         			                        +v_sensor_C_Tot;
-        			            return fuel_consum>0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRIP){
         			            fuel_consum = v_sensor_A_Trip+v_sensor_B_Trip
         			                        +v_sensor_C_Trip;
-        			            return fuel_consum>0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			}
         			if(v_sensor_A_status == V_MENU_SENSOR_STATUS_NOT_IN_USE 
@@ -701,12 +704,12 @@ static uint32_t v_get_fuel_consum_data(uint8_t equip_index,uint8_t type){
         		 		if(type == V_MENU_SHOW_TYPE_TOT){
         			            fuel_consum = v_sensor_A_Tot+v_sensor_B_Tot
         			                        +v_sensor_C_Tot+v_sensor_D_Tot;
-        			            return fuel_consum>0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRIP){
         			            fuel_consum = v_sensor_A_Trip+v_sensor_B_Trip
         			                        +v_sensor_C_Trip+v_sensor_D_Trip;
-        			            return fuel_consum>0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRAVEL){
         			            return v_fuel_consum_1_travel_consum;
@@ -731,11 +734,11 @@ static uint32_t v_get_fuel_consum_data(uint8_t equip_index,uint8_t type){
         			&& v_sensor_D_status == V_MENU_SENSOR_STATUS_NORMAL){
         		 		if(type == V_MENU_SHOW_TYPE_TOT){
         			            fuel_consum = v_sensor_C_Tot-v_sensor_D_Tot;
-        			            return fuel_consum>0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRIP){
         			            fuel_consum = v_sensor_C_Trip-v_sensor_D_Trip;
-        			            return fuel_consum>0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRAVEL){
         			            return v_fuel_consum_1_travel_consum;
@@ -752,11 +755,11 @@ static uint32_t v_get_fuel_consum_data(uint8_t equip_index,uint8_t type){
         			if(v_sensor_C_status == V_MENU_SENSOR_STATUS_NORMAL){
         		 		if(type == V_MENU_SHOW_TYPE_TOT){
         			            fuel_consum =  v_sensor_C_Tot;
-        			            return fuel_consum>0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRIP){
         			            fuel_consum = v_sensor_C_Trip;
-        			            return fuel_consum>0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRAVEL){
         			            return v_fuel_consum_1_travel_consum;
@@ -772,11 +775,11 @@ static uint32_t v_get_fuel_consum_data(uint8_t equip_index,uint8_t type){
         			if(v_sensor_C_status == V_MENU_SENSOR_STATUS_NORMAL){
         		 		if(type == V_MENU_SHOW_TYPE_TOT){
         			            fuel_consum =  v_sensor_C_Tot;
-        			            return fuel_consum>0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRIP){
         			            fuel_consum = v_sensor_C_Trip;
-        			            return fuel_consum>0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRAVEL){
         			            return v_fuel_consum_1_travel_consum;
@@ -836,68 +839,68 @@ static uint32_t get_fuel_instant_consum_data(uint8_t equip_index){
 }
 
 static void v_menu_show_sensor_fuel_consum_1_Trip_Tot(void){	
-	v_menu_show_value(0,"1 ",v_menu_lang_trip, v_get_fuel_consum_data(1,V_MENU_SHOW_TYPE_TRIP));
-	v_menu_show_value(1,"1 ",v_menu_lang_fuel,v_get_fuel_consum_data(1,V_MENU_SHOW_TYPE_TOT));
+	v_menu_show_value(0,"1",v_menu_lang_fuel_trip, v_get_fuel_consum_data(1,V_MENU_SHOW_TYPE_TRIP));
+	v_menu_show_value(1,"1",v_menu_lang_fuel,v_get_fuel_consum_data(1,V_MENU_SHOW_TYPE_TOT));
 }
 static void v_menu_show_sensor_fuel_consum_1_travel_consum(void){
 	v_menu_show_time(0,v_fuel_consum_1_travel_time);
-       v_menu_show_value(1,"1 ",v_menu_lang_fuel,v_get_fuel_consum_data(1,V_MENU_SHOW_TYPE_TRAVEL));
+       v_menu_show_value(1,"1",v_menu_lang_fuel,v_get_fuel_consum_data(1,V_MENU_SHOW_TYPE_TRAVEL));
 }
 static void v_menu_show_sensor_fuel_consum_1_instant_consum(void){     
 	v_menu_show_instant_fuel_consum(get_fuel_instant_consum_data(1));
 }
 static void v_menu_show_sensor_fuel_consum_2_Trip_Tot(void){
-	v_menu_show_value(0,"2 ",v_menu_lang_trip,v_get_fuel_consum_data(2,V_MENU_SHOW_TYPE_TRIP));
-	v_menu_show_value(1,"2 ",v_menu_lang_fuel,v_get_fuel_consum_data(2,V_MENU_SHOW_TYPE_TOT));
+	v_menu_show_value(0,"2",v_menu_lang_fuel_trip,v_get_fuel_consum_data(2,V_MENU_SHOW_TYPE_TRIP));
+	v_menu_show_value(1,"2",v_menu_lang_fuel,v_get_fuel_consum_data(2,V_MENU_SHOW_TYPE_TOT));
 }
 static void v_menu_show_sensor_fuel_consum_2_travel_consum(void){
 	v_menu_show_time(0,v_fuel_consum_2_travel_time);
-    v_menu_show_value(1,"2 ",v_menu_lang_fuel,v_get_fuel_consum_data(2,V_MENU_SHOW_TYPE_TRAVEL));
+    v_menu_show_value(1,"2",v_menu_lang_fuel,v_get_fuel_consum_data(2,V_MENU_SHOW_TYPE_TRAVEL));
 }
 static void v_menu_show_sensor_fuel_consum_2_instant_consum(void){
 	v_menu_show_instant_fuel_consum(get_fuel_instant_consum_data(2));
 }
 static void v_menu_show_sensor_A_Trip_Tot(void){
-	v_menu_show_value(0,"A_",v_menu_lang_trip,v_get_sensor_data(0,V_MENU_SHOW_TYPE_TRIP));
-	v_menu_show_value(1,"A_",v_menu_lang_tot,v_get_sensor_data(0,V_MENU_SHOW_TYPE_TOT));
+	v_menu_show_value(0,"A",v_menu_lang_trip,v_get_sensor_data(0,V_MENU_SHOW_TYPE_TRIP));
+	v_menu_show_value(1,"A",v_menu_lang_tot,v_get_sensor_data(0,V_MENU_SHOW_TYPE_TOT));
 }
 static void v_menu_show_sensor_B_Trip_Tot(void){
-	v_menu_show_value(0,"B_",v_menu_lang_trip,v_get_sensor_data(1,V_MENU_SHOW_TYPE_TRIP));
-	v_menu_show_value(1,"B_",v_menu_lang_tot,v_get_sensor_data(1,V_MENU_SHOW_TYPE_TOT));
+	v_menu_show_value(0,"B",v_menu_lang_trip,v_get_sensor_data(1,V_MENU_SHOW_TYPE_TRIP));
+	v_menu_show_value(1,"B",v_menu_lang_tot,v_get_sensor_data(1,V_MENU_SHOW_TYPE_TOT));
 }
 static void v_menu_show_sensor_C_Trip_Tot(void){
-	v_menu_show_value(0,"C_",v_menu_lang_trip,v_get_sensor_data(2,V_MENU_SHOW_TYPE_TRIP));
-	v_menu_show_value(1,"C_",v_menu_lang_tot,v_get_sensor_data(2,V_MENU_SHOW_TYPE_TOT));
+	v_menu_show_value(0,"C",v_menu_lang_trip,v_get_sensor_data(2,V_MENU_SHOW_TYPE_TRIP));
+	v_menu_show_value(1,"C",v_menu_lang_tot,v_get_sensor_data(2,V_MENU_SHOW_TYPE_TOT));
 
 }
 static void v_menu_show_sensor_D_Trip_Tot(void){
-	v_menu_show_value(0,"D_",v_menu_lang_trip,v_get_sensor_data(3,V_MENU_SHOW_TYPE_TRIP));
-	v_menu_show_value(1,"D_",v_menu_lang_tot,v_get_sensor_data(3,V_MENU_SHOW_TYPE_TOT));
+	v_menu_show_value(0,"D",v_menu_lang_trip,v_get_sensor_data(3,V_MENU_SHOW_TYPE_TRIP));
+	v_menu_show_value(1,"D",v_menu_lang_tot,v_get_sensor_data(3,V_MENU_SHOW_TYPE_TOT));
 }
 static void v_menu_show_sensor_A_B_Trip(void){
-	v_menu_show_value(0,"A_",v_menu_lang_trip,v_get_sensor_data(0,V_MENU_SHOW_TYPE_TRIP));
-	v_menu_show_value(1,"B_",v_menu_lang_trip,v_get_sensor_data(1,V_MENU_SHOW_TYPE_TRIP));
+	v_menu_show_value(0,"A",v_menu_lang_trip,v_get_sensor_data(0,V_MENU_SHOW_TYPE_TRIP));
+	v_menu_show_value(1,"B",v_menu_lang_trip,v_get_sensor_data(1,V_MENU_SHOW_TYPE_TRIP));
 }
 static void v_menu_show_sensor_A_B_Tot(void){
-	v_menu_show_value(0,"A_",v_menu_lang_tot,v_get_sensor_data(0,V_MENU_SHOW_TYPE_TOT));
-	v_menu_show_value(1,"B_",v_menu_lang_tot,v_get_sensor_data(1,V_MENU_SHOW_TYPE_TOT));
+	v_menu_show_value(0,"A",v_menu_lang_tot,v_get_sensor_data(0,V_MENU_SHOW_TYPE_TOT));
+	v_menu_show_value(1,"B",v_menu_lang_tot,v_get_sensor_data(1,V_MENU_SHOW_TYPE_TOT));
 }
 static void v_menu_show_sensor_C_D_Trip(void){
-	v_menu_show_value(0,"C_",v_menu_lang_trip,v_get_sensor_data(2,V_MENU_SHOW_TYPE_TRIP));
-	v_menu_show_value(1,"D_",v_menu_lang_trip,v_get_sensor_data(3,V_MENU_SHOW_TYPE_TRIP));
+	v_menu_show_value(0,"C",v_menu_lang_trip,v_get_sensor_data(2,V_MENU_SHOW_TYPE_TRIP));
+	v_menu_show_value(1,"D",v_menu_lang_trip,v_get_sensor_data(3,V_MENU_SHOW_TYPE_TRIP));
 }
 static void v_menu_show_sensor_C_D_Tot(void){
-	v_menu_show_value(0,"C_",v_menu_lang_tot,v_get_sensor_data(2,V_MENU_SHOW_TYPE_TOT));
-	v_menu_show_value(1,"D_",v_menu_lang_tot,v_get_sensor_data(3,V_MENU_SHOW_TYPE_TOT));
+	v_menu_show_value(0,"C",v_menu_lang_tot,v_get_sensor_data(2,V_MENU_SHOW_TYPE_TOT));
+	v_menu_show_value(1,"D",v_menu_lang_tot,v_get_sensor_data(3,V_MENU_SHOW_TYPE_TOT));
 }
 
 static void v_menu_show_sensor_A_B_flow(void){
-	v_menu_show_value(0,"A_",v_menu_lang_flow,v_get_sensor_data(0,V_MENU_SHOW_TYPE_FLOW));	
-	v_menu_show_value(1,"B_",v_menu_lang_flow,v_get_sensor_data(1,V_MENU_SHOW_TYPE_FLOW));
+	v_menu_show_value(0,"A",v_menu_lang_flow,v_get_sensor_data(0,V_MENU_SHOW_TYPE_FLOW));	
+	v_menu_show_value(1,"B",v_menu_lang_flow,v_get_sensor_data(1,V_MENU_SHOW_TYPE_FLOW));
 }
 static void v_menu_show_sensor_C_D_flow(void){
-	v_menu_show_value(0,"C_",v_menu_lang_flow,v_get_sensor_data(2,V_MENU_SHOW_TYPE_FLOW));	
-	v_menu_show_value(1,"D_",v_menu_lang_flow,v_get_sensor_data(3,V_MENU_SHOW_TYPE_FLOW));
+	v_menu_show_value(0,"C",v_menu_lang_flow,v_get_sensor_data(2,V_MENU_SHOW_TYPE_FLOW));	
+	v_menu_show_value(1,"D",v_menu_lang_flow,v_get_sensor_data(3,V_MENU_SHOW_TYPE_FLOW));
 }
 
 /*display function for menu setting*/
@@ -955,7 +958,15 @@ static void v_menu_setting_show_all_close(void){
 		v_menu_show_str(1,"设定  关闭全显");
 	}
 }
-
+static void v_menu_show_copy_to_sdcard(void){
+	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
+		v_menu_show_str(0,"Start Data copy?");
+		v_menu_show_str(1,"                   yes");
+	}else if(v_menu_language ==  V_MENU_LANGUAGE_CN){
+		v_menu_show_str(0,"开始历史数据复制?");
+		v_menu_show_str(1,"              是");
+	}
+}
 static void v_menu_show_copying_to_sdcard(void){
 	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
 		v_menu_show_str(0," Data copying...");
@@ -1147,6 +1158,7 @@ static v_menu_struct_t v_struct_setting_show_all_close_enter;
 
 /*struct for menu copy to sdcard*/
 static v_menu_struct_t v_struct_copy_to_sdcard;
+static v_menu_struct_t v_struct_copy_to_sdcard_enter;
 static v_menu_struct_t v_struct_copy_to_sdcard_failed;
 
 static v_init_menu_struct(v_menu_struct_t *source_struct,
@@ -1580,15 +1592,34 @@ static void v_menu_enter_reset_all_trip(void){
 //	send_cmd(ENABLE_DISABLE_RESET,NULL,NULL);
 //	delay_ms(10);
 	send_cmd(TRIP_RESET,NULL,NULL);
-
+       v_menu_function();
+}
+static uint8_t v_menu_send_and_wait_messge(uint8_t cmd_index){
+	int i=0;
+	for(i=0;i<3;i++){
+		delay_ms(50);
+		send_cmd(cmd_index, NULL, NULL);
+		if(!wait_for_cmd(cmd_index)) return 0;
+	}
+	return 1;
 }
 static void v_menu_enter_reset_all(void){
 	send_cmd(ENABLE_DISABLE_RESET,NULL,NULL);
-	delay_ms(10);
-	send_cmd(TOTAL_RESET,NULL,NULL);
+	delay_ms(50);
+	v_menu_send_and_wait_messge(GET_RESET_ENABLE);
+	delay_ms(50);
+	if(v_menu_reset_tot_enable){
+	    send_cmd(TOTAL_RESET,NULL,NULL);
+	}
+	v_menu_function();
 }
 //do function for sd card
 static void v_do_function_copy_to_sdcard(void){
+        v_menu_in_display = 0;
+}
+
+static void v_do_function_copying_to_sdcard(void){
+
         v_menu_in_display = 0;
         if(query_store_history()){
             v_menu_enter_save_data_failed();
@@ -1614,15 +1645,7 @@ static void v_init_menu_display_struct_table(void){
 		}
 	}
 }
-static uint8_t v_menu_send_and_wait_messge(uint8_t cmd_index){
-	int i=0;
-	for(i=0;i<3;i++){
-		delay_ms(50);
-		send_cmd(cmd_index, NULL, NULL);
-		if(!wait_for_cmd(cmd_index)) return 0;
-	}
-	return 1;
-}
+
 static int v_menu_init_settings(void){
 #ifdef DEBUG
 	v_menu_language = V_MENU_LANGUAGE_CN;
@@ -1668,10 +1691,19 @@ void v_menu_init(void){
 //	v_cur_menu = &v_struct_setting_select_display_format;
 	v_init_menu_struct(
 		&v_struct_copy_to_sdcard,
-		0,0,
+		&v_struct_copy_to_sdcard_enter,
+		&v_struct_show_sensor_fuel_consum_1_Trip_Tot,
 		0,
 		0,
 		v_do_function_copy_to_sdcard,
+		v_menu_show_copy_to_sdcard
+	);
+	v_init_menu_struct(
+		&v_struct_copy_to_sdcard_enter,
+		0,0,
+		0,
+		0,
+		v_do_function_copying_to_sdcard,
 		v_menu_show_copying_to_sdcard
 	);
 	v_init_menu_struct(

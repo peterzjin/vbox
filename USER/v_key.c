@@ -97,6 +97,9 @@ void v_key_scan(void)
 		delay_ms(V_KEY_CHECK_INTERVAL);//È¥¶¶¶¯
 		if(V_KEY_ESC==V_KEY_ESC_DOWN)
 		{
+		       uint8_t flag_3S_over = 0;
+			uint8_t flag_9S_over = 0;
+		        
 			v_key_down = 1;
 			for(i=0;i<V_KEY_CHECK_15S+1;i++){
 				if(V_KEY_ESC==V_KEY_ESC_UP)	
@@ -105,6 +108,24 @@ void v_key_scan(void)
 					break;
 				}
 				delay_ms(V_KEY_CHECK_INTERVAL);
+				{
+			    	       if(i>V_KEY_CHECK_9S){
+						if(flag_9S_over == 0)
+						{
+							flag_9S_over = 1;						
+							v_buzz_key();
+						}
+					}else if(i>V_KEY_CHECK_3S){
+						if(flag_3S_over == 0)
+						{
+							flag_3S_over = 1;
+							v_buzz_key();
+						}
+					}else{	    	
+						//v_key = V_KEY_ENTER_SHORT;
+					}
+					v_menu_show();
+				}
 			}
 //			GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE);
 			if(i>V_KEY_CHECK_9S){

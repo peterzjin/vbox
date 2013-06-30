@@ -45,7 +45,7 @@ void v_menu_timer_stop(void)
 	TIM_ITConfig(TIM4, TIM_IT_Update | TIM_IT_Trigger, DISABLE);
 	TIM_Cmd(TIM4, DISABLE);
 }
-static uint16_t v_menu_timer_tmp;
+static uint32_t v_menu_timer_tmp;
 extern uint32_t v_menu_show_all_time;
 void v_menu_show_all_start()
 {
@@ -64,7 +64,7 @@ void TIM4_IRQHandler(void)
 	if (TIM_GetITStatus(TIM4, TIM_IT_Update) != RESET)
 	{
 		TIM_ClearITPendingBit(TIM4, TIM_IT_Update);
-		if(v_menu_timer_tmp > v_menu_show_all_time){
+		if(v_menu_timer_tmp > v_menu_show_all_time*60){
 			v_menu_show_all_stop();
 		}else{
 			v_menu_timer_tmp++;
