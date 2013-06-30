@@ -436,9 +436,6 @@ static void parse_uart_data(void)
 				| (u_buf[41] << 16) | (u_buf[42] << 24);
 			break;
 		case 0x40:
-			if (u_buf[0] > 0x08)
-				goto no_cmd;
-
 			v_sensor_work_mode = u_buf[0];
 			break;
 		case 0xF0:
