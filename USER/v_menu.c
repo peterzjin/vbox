@@ -15,7 +15,7 @@
 #include "uart_timer.h"
 #include "v_menu_timer.h"
 
-#define DEBUG
+//#define DEBUG
 
 #define V_MENU_LANGUAGE_EN		0x01
 #define V_MENU_LANGUAGE_CN		0x00
@@ -23,7 +23,7 @@
 #define V_MENU_DISPLAY_FORMAT_FLOW_L      	0x00
 #define V_MENU_DISPLAY_FORMAT_PULSE		0x01
 #ifdef DEBUG
-#define V_MENU_SETTING_LOCAL_SHOW_ALL_TIME 30
+#define V_MENU_SETTING_LOCAL_SHOW_ALL_TIME 1
 #else
 #define V_MENU_SETTING_LOCAL_SHOW_ALL_TIME	60	//60m
 #endif
@@ -43,6 +43,9 @@
 #define V_MENU_SHOW_TYPE_INSTANT    3
 #define V_MENU_SHOW_TYPE_FLOW    4
 
+#define V_MENU_SHOW_DATA_MASK 	((1<<SENSOR_DATA_PULSE)|(1<<SENSOR_DATA_TOT_TRIP)|(1<<SENSOR_DATA_LITER))
+#define V_MENU_CMD_DISPLAY_MODE_MASK    ((1<<DISPLAY_FORMAT)|(1<<DISPLAY_DELAY_TIME))
+
 typedef struct v_menu_struct
 { 
 	struct v_menu_struct *enter_menu;
@@ -57,12 +60,17 @@ typedef struct v_menu_struct
 static v_menu_struct_t *v_cur_menu;
 
 uint8_t v_menu_show_all_flag = 0;
-static v_menu_show_all_time_origin;
+static uint32_t v_menu_show_all_time_origin;
 static uint8_t v_menu_in_display = 1;		//in diplay flag
 static uint32_t v_menu_show_last_value_0;
 static uint32_t v_menu_show_last_value_1;
 static uint32_t v_menu_show_error_count_0;
 static uint32_t v_menu_show_error_count_1;
+static uint32_t v_menu_latest_display_format;
+static uint32_t v_menu_latest_show_all_time;
+
+uint32_t v_menu_display_format_setting;
+uint32_t v_menu_show_all_time_setting;
 
 //0: disable 1: enable
 uint32_t v_menu_sleep;                                     //0x0f
@@ -227,13 +235,22 @@ static void v_menu_function(void){
 	}
 }
 
+uint8_t v_setting_changed;
+static void v_menu_check_setting_changed(void);
 void v_menu_show(void){
 	if(v_cur_menu){
+	        v_menu_check_setting_changed();
+		if(v_menu_in_display){
 #ifndef DEBUG
-		if(v_menu_in_display && !cmd_data_available) return;
-#endif
-		if(v_cur_menu->menu_show)	v_cur_menu->menu_show();
-		cmd_data_available = 0;
+		   if( !(cmd_data_available&V_MENU_SHOW_DATA_MASK)) return;
+#endif   
+		   if(v_cur_menu->menu_show)	v_cur_menu->menu_show();
+		   cmd_data_available &= ~V_MENU_SHOW_DATA_MASK;
+		}else{
+		    if(!v_setting_changed) return;
+		    if(v_cur_menu->menu_show) v_cur_menu->menu_show();
+		    v_setting_changed = 0;
+		}	
 	}
 }
 /*needed string*/
@@ -316,6 +333,7 @@ static void v_menu_show_wating(){
 	v_menu_show_str(1,"");
 }
 static void v_menu_show_time(uint8_t line, uint32_t time){
+       v_menu_clear_inverse();
 	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
 //		sprintf(v_sprintf_buff,"  %02dHH%02dMM%02dSS",
 //		time>>16&0xFF,time>>8&0xFF,time&0xFF);
@@ -335,6 +353,7 @@ static void v_menu_show_time(uint8_t line, uint32_t time){
 }
 
 static void v_menu_show_value(uint8_t line, char *hint_pre, char *hint, uint32_t value){
+       v_menu_clear_inverse();
 	value = v_menu_show_check_value_error(line,value);
 	if (value == V_MENU_SHOW_STATUS_ABNORMAL){
 		sprintf(v_sprintf_buff,"%s%s:%s",hint_pre,hint,v_menu_lang_abnormal);
@@ -354,6 +373,7 @@ static void v_menu_show_value(uint8_t line, char *hint_pre, char *hint, uint32_t
 	v_menu_show_str(line,v_sprintf_buff);
 }
 static void v_menu_show_instant_fuel_consum(uint32_t value){
+       v_menu_clear_inverse();
 	value = v_menu_show_check_value_error(1,value);
 	v_menu_show_str(0,v_menu_lang_instant_fuel_consum);
 	if (value == V_MENU_SHOW_STATUS_ABNORMAL){
@@ -912,6 +932,8 @@ static void v_menu_setting_select_display_format(void){
 		v_menu_show_str(0,"选择  公升/ 脉冲");
 		v_menu_show_str(1,"      开启全显");
 	}
+	v_menu_clear_inverse();
+	v_menu_show_inverse(0);
 }
 static void v_menu_setting_select_show_all(void){
 	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
@@ -921,16 +943,33 @@ static void v_menu_setting_select_show_all(void){
 		v_menu_show_str(0,"      公升/ 脉冲");
 		v_menu_show_str(1,"选择  开启全显");
 	}
+	 v_menu_clear_inverse();
+	v_menu_show_inverse(1);
 }
 static void v_menu_setting_display_format_flow_L(void){
-	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
-		v_menu_show_str(0,"    DisplayPulse");
-		v_menu_show_str(1,"Set Display L");
-	}else if(v_menu_language ==  V_MENU_LANGUAGE_CN){
-		v_menu_show_str(0,"      显示脉冲");
-		v_menu_show_str(1,"设定  显示公升");
+       if(v_menu_display_format_setting == V_MENU_DISPLAY_FORMAT_FLOW_L){
+        	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
+        		v_menu_show_str(0,"    DisplayPulse");
+        		v_menu_show_str(1,"Set Display L");
+        	}else if(v_menu_language ==  V_MENU_LANGUAGE_CN){
+        		v_menu_show_str(0,"      显示脉冲");
+        		v_menu_show_str(1,"设定  显示公升");
+        	}
+        	v_menu_clear_inverse();
+        	v_menu_show_inverse(1);
+	}else{
+	        if(v_menu_language ==  V_MENU_LANGUAGE_EN){
+        		v_menu_show_str(0,"Set DisplayPulse");
+        		v_menu_show_str(1,"    Display L");
+        	}else if(v_menu_language ==  V_MENU_LANGUAGE_CN){
+        		v_menu_show_str(0,"设定  显示脉冲");
+        		v_menu_show_str(1,"      显示公升");
+        	}
+        	v_menu_clear_inverse();
+        	v_menu_show_inverse(0);
 	}
 }
+/*
 static void v_menu_setting_display_format_pulse(void){
 	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
 		v_menu_show_str(0,"Set DisplayPulse");
@@ -940,15 +979,31 @@ static void v_menu_setting_display_format_pulse(void){
 		v_menu_show_str(1,"      显示公升");
 	}
 }
+*/
 static void v_menu_setting_show_all_set(void){
-	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
-		v_menu_show_str(0,"Set Open ALL");
-		v_menu_show_str(1,"    Close All");
-	}else if(v_menu_language ==  V_MENU_LANGUAGE_CN){
-		v_menu_show_str(0,"设定  开启全显");
-		v_menu_show_str(1,"      关闭全显");
-	}
+       if(v_menu_show_all_time_setting){
+        	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
+        		v_menu_show_str(0,"Set Open ALL");
+        		v_menu_show_str(1,"    Close All");
+        	}else if(v_menu_language ==  V_MENU_LANGUAGE_CN){
+        		v_menu_show_str(0,"设定  开启全显");
+        		v_menu_show_str(1,"      关闭全显");
+        	}
+        	 v_menu_clear_inverse();
+        	v_menu_show_inverse(0);
+        }else{
+              if(v_menu_language ==  V_MENU_LANGUAGE_EN){
+        		v_menu_show_str(0,"    Open ALL");
+        		v_menu_show_str(1,"Set Close All");
+        	}else if(v_menu_language ==  V_MENU_LANGUAGE_CN){
+        		v_menu_show_str(0,"      开启全显");
+        		v_menu_show_str(1,"设定  关闭全显");
+        	}
+        	v_menu_clear_inverse();
+        	v_menu_show_inverse(1);
+        }
 }
+/*
 static void v_menu_setting_show_all_close(void){
 	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
 		v_menu_show_str(0,"    Open ALL");
@@ -958,7 +1013,8 @@ static void v_menu_setting_show_all_close(void){
 		v_menu_show_str(1,"设定  关闭全显");
 	}
 }
-static void v_menu_show_copy_to_sdcard(void){
+*/
+static void v_menu_show_save_history_data(void){
 	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
 		v_menu_show_str(0,"Start Data copy?");
 		v_menu_show_str(1,"                   yes");
@@ -966,8 +1022,9 @@ static void v_menu_show_copy_to_sdcard(void){
 		v_menu_show_str(0,"开始历史数据复制?");
 		v_menu_show_str(1,"              是");
 	}
+	v_menu_clear_inverse();
 }
-static void v_menu_show_copying_to_sdcard(void){
+static void v_menu_show_saving_history_data(void){
 	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
 		v_menu_show_str(0," Data copying...");
 		v_menu_show_str(1,"");
@@ -975,16 +1032,29 @@ static void v_menu_show_copying_to_sdcard(void){
 		v_menu_show_str(0,"历史数据  复制中...");
 		v_menu_show_str(1,"");
 	}
+	v_menu_clear_inverse();
 }
 
-static void v_menu_show_copy_to_sdcard_failed(void){
+static void v_menu_show_save_history_data_succeed(void){
 	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
-		v_menu_show_str(0,"  Copy failed!");
+		v_menu_show_str(0," Save succeed!");
 		v_menu_show_str(1,"");
 	}else if(v_menu_language ==  V_MENU_LANGUAGE_CN){
 		v_menu_show_str(0,"历史数据复制失败!");
 		v_menu_show_str(1,"");
 	}
+	v_menu_clear_inverse();
+}
+
+static void v_menu_show_save_history_data_failed(void){
+	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
+		v_menu_show_str(0,"  Save failed!");
+		v_menu_show_str(1,"");
+	}else if(v_menu_language ==  V_MENU_LANGUAGE_CN){
+		v_menu_show_str(0,"历史数据复制失败!");
+		v_menu_show_str(1,"");
+	}
+	v_menu_clear_inverse();
 }
 
 static void v_menu_start_sensor_data_loop_flow_l(uint16_t arr){
@@ -1086,24 +1156,35 @@ static void v_do_function_sensor_C_D_flow(void){
 /*do function for menu setting*/
 static void v_do_function_setting_select_display_format(void){
 	//v_menu_show_wating();
+	v_setting_changed = 1;
 	v_menu_in_display = 0;
 }
 static void v_do_function_setting_select_show_all(void){
 	//v_menu_show_wating();
+	v_setting_changed = 1;
 }
 static void v_do_function_setting_display_format_flow_L(void){
+       v_setting_changed = 1;
+       v_menu_display_format_setting= v_menu_display_format;
 	//v_menu_show_wating();
 }
+/*
 static void v_do_function_setting_display_format_pulse(void){
 	//v_menu_show_wating();
 }
+*/
 static void v_do_function_setting_show_all_set(void){
+       v_setting_changed = 1;
+       v_menu_show_all_time_setting = v_menu_show_all_time;
 	//v_menu_show_wating();
 }
+/*
 static void v_do_function_setting_show_all_close(void){
 	//v_menu_show_wating();
 }
+*/
 static void v_init_menu_display_struct_table(void);
+#if 0
 static void v_do_function_setting_display_format_flow_L_enter(void){
 	//v_menu_show_wating();
 	v_menu_display_format = V_MENU_DISPLAY_FORMAT_FLOW_L;
@@ -1126,6 +1207,7 @@ void v_do_function_setting_show_all_close_enter(void){
 	v_menu_timer_stop();
 	v_init_menu_display_struct_table();
 }
+#endif
 /*struct for menu display*/
 static v_menu_struct_t v_struct_show_sensor_fuel_consum_1_Trip_Tot;
 static v_menu_struct_t v_struct_show_sensor_fuel_consum_1_travel_consum;
@@ -1148,18 +1230,19 @@ static v_menu_struct_t v_struct_show_sensor_C_D_flow;
 static v_menu_struct_t v_struct_setting_select_display_format;
 static v_menu_struct_t v_struct_setting_select_show_all;
 static v_menu_struct_t v_struct_setting_display_format_flow_L;
-static v_menu_struct_t v_struct_setting_display_format_flow_L_enter;
-static v_menu_struct_t v_struct_setting_display_format_pulse;
-static v_menu_struct_t v_struct_setting_display_format_pulse_enter;
+//static v_menu_struct_t v_struct_setting_display_format_flow_L_enter;
+//static v_menu_struct_t v_struct_setting_display_format_pulse;
+//static v_menu_struct_t v_struct_setting_display_format_pulse_enter;
 static v_menu_struct_t v_struct_setting_show_all_set;
-static v_menu_struct_t v_struct_setting_show_all_set_enter;
-static v_menu_struct_t v_struct_setting_show_all_close;
-static v_menu_struct_t v_struct_setting_show_all_close_enter;
+//static v_menu_struct_t v_struct_setting_show_all_set_enter;
+//static v_menu_struct_t v_struct_setting_show_all_close;
+//static v_menu_struct_t v_struct_setting_show_all_close_enter;
 
 /*struct for menu copy to sdcard*/
-static v_menu_struct_t v_struct_copy_to_sdcard;
-static v_menu_struct_t v_struct_copy_to_sdcard_enter;
-static v_menu_struct_t v_struct_copy_to_sdcard_failed;
+static v_menu_struct_t v_struct_save_history_data;
+static v_menu_struct_t v_struct_save_history_data_enter;
+static v_menu_struct_t v_struct_save_history_data_succeed;
+static v_menu_struct_t v_struct_save_history_data_failed;
 
 static v_init_menu_struct(v_menu_struct_t *source_struct,
 	v_menu_struct_t *enter_menu, v_menu_struct_t *esc_menu,v_menu_struct_t *up_menu,
@@ -1495,13 +1578,14 @@ static void v_init_menu_setting_struct_table(void){
 	);
 	v_init_menu_struct(
 		&v_struct_setting_display_format_flow_L,
-		&v_struct_setting_display_format_flow_L_enter,
+		0,//&v_struct_setting_display_format_flow_L_enter,
 		&v_struct_setting_select_display_format,
-		&v_struct_setting_display_format_pulse,
+		0,//&v_struct_setting_display_format_pulse,
 		0,
 		v_do_function_setting_display_format_flow_L,
 		v_menu_setting_display_format_flow_L
 	);
+/*
 	v_init_menu_struct(
 		&v_struct_setting_display_format_flow_L_enter,
 		0,
@@ -1529,16 +1613,16 @@ static void v_init_menu_setting_struct_table(void){
 		v_do_function_setting_display_format_pulse_enter,
 		v_menu_setting_display_format_pulse
 	);
-	v_init_menu_struct(
+*/	v_init_menu_struct(
 		&v_struct_setting_show_all_set,
-		&v_struct_setting_show_all_set_enter,
+		0,//&v_struct_setting_show_all_set_enter,
 		&v_struct_setting_select_show_all,
 		0,
-		&v_struct_setting_show_all_close,
+		0,//&v_struct_setting_show_all_close,
 		v_do_function_setting_show_all_set,
 		v_menu_setting_show_all_set
 	);
-	v_init_menu_struct(
+/*	v_init_menu_struct(
 		&v_struct_setting_show_all_set_enter,
 		0,
 		&v_struct_setting_select_show_all,
@@ -1565,6 +1649,7 @@ static void v_init_menu_setting_struct_table(void){
 		v_do_function_setting_show_all_close_enter,
 		v_menu_setting_show_all_close
 	);
+*/
 }
 
 static void v_menu_enter_setting(void){
@@ -1574,17 +1659,18 @@ static void v_menu_enter_setting(void){
 }
 static void v_menu_enter_display(void){
 	v_menu_in_display = 1;
+	v_init_menu_display_struct_table();
 	v_cur_menu = &v_struct_show_sensor_fuel_consum_1_Trip_Tot;
 }
-static void v_menu_enter_save_data_to_sd(void){
-	v_cur_menu = &v_struct_copy_to_sdcard;
+static void v_menu_enter_save_history_data(void){
+	v_cur_menu = &v_struct_save_history_data;
 }
-static void v_menu_enter_save_data_succeed(void){
-	v_menu_enter_display();
+static void v_menu_enter_save_history_data_succeed(void){
+	v_cur_menu = &v_struct_save_history_data_succeed;
 	v_menu_function();
 }
-static void v_menu_enter_save_data_failed(void){
-	v_cur_menu = &v_struct_copy_to_sdcard_failed;
+static void v_menu_enter_save_history_data_failed(void){
+	v_cur_menu = &v_struct_save_history_data_failed;
 	v_menu_function();
 }
 
@@ -1614,22 +1700,28 @@ static void v_menu_enter_reset_all(void){
 	v_menu_function();
 }
 //do function for sd card
-static void v_do_function_copy_to_sdcard(void){
+static void v_do_function_save_history_data(void){
+        v_setting_changed = 1;
         v_menu_in_display = 0;
 }
 
-static void v_do_function_copying_to_sdcard(void){
-
+static void v_do_function_saving_history_data(void){
+        v_setting_changed = 1;
         v_menu_in_display = 0;
         if(query_store_history()){
-            v_menu_enter_save_data_failed();
+            v_menu_enter_save_history_data_failed();
         }else{
-            v_menu_enter_save_data_succeed();
+            v_menu_enter_save_history_data_succeed();
         }
 	//v_copy_to_sdcard(v_menu_enter_save_data_succeed,v_menu_enter_save_data_failed);
 }
 
-static void v_do_function_copy_to_sdcard_failed(void){
+static void v_do_function_save_history_data_succeed(void){
+        v_setting_changed = 1;
+}
+
+static void v_do_function_save_history_data_failed(void){
+        v_setting_changed = 1;
 }
 
 static void v_init_menu_display_struct_table(void){
@@ -1645,12 +1737,48 @@ static void v_init_menu_display_struct_table(void){
 		}
 	}
 }
-
+static void v_init_menu_struct_save_history_data_table(void){
+    v_init_menu_struct(
+		&v_struct_save_history_data,
+		&v_struct_save_history_data_enter,
+		&v_struct_show_sensor_fuel_consum_1_Trip_Tot,
+		0,
+		0,
+		v_do_function_save_history_data,
+		v_menu_show_save_history_data
+	);
+	v_init_menu_struct(
+		&v_struct_save_history_data_enter,
+		0,0,
+		0,
+		0,
+		v_do_function_saving_history_data,
+		v_menu_show_saving_history_data
+	);
+	v_init_menu_struct(
+		&v_struct_save_history_data_succeed,
+		&v_struct_show_sensor_fuel_consum_1_Trip_Tot,
+		&v_struct_show_sensor_fuel_consum_1_Trip_Tot,
+		0,
+		0,
+		v_do_function_save_history_data_succeed,
+		v_menu_show_save_history_data_succeed
+	);
+	v_init_menu_struct(
+		&v_struct_save_history_data_failed,
+		0,
+		&v_struct_show_sensor_fuel_consum_1_Trip_Tot,
+		0,
+		0,
+		v_do_function_save_history_data_failed,
+		v_menu_show_save_history_data_failed
+	);
+}
 static int v_menu_init_settings(void){
 #ifdef DEBUG
 	v_menu_language = V_MENU_LANGUAGE_CN;
 	v_menu_display_format = V_MENU_DISPLAY_FORMAT_PULSE;//V_MENU_DISPLAY_FORMAT_FLOW_L;
-	v_menu_show_all_time = 3;
+	v_menu_show_all_time = 1;
 	
 	v_sensor_work_mode = 0x05;
 	v_sensor_error_delay_time = 15;
@@ -1683,40 +1811,21 @@ void v_menu_init(void){
 	if((ret = v_menu_init_settings()) != 0){
 		sprintf(v_sprintf_buff,"Init failed %d!",ret);
 		v_menu_show_str(0,v_sprintf_buff);
+		v_menu_show_str(1,"");
 		while(1);
 	}
 	v_menu_show_str(0," Init succeed!");	
 	v_init_language_hint_string();
-	  
+	
+	v_menu_latest_display_format = v_menu_display_format;
+	v_menu_latest_show_all_time = v_menu_show_all_time;
+	
 //	v_cur_menu = &v_struct_setting_select_display_format;
-	v_init_menu_struct(
-		&v_struct_copy_to_sdcard,
-		&v_struct_copy_to_sdcard_enter,
-		&v_struct_show_sensor_fuel_consum_1_Trip_Tot,
-		0,
-		0,
-		v_do_function_copy_to_sdcard,
-		v_menu_show_copy_to_sdcard
-	);
-	v_init_menu_struct(
-		&v_struct_copy_to_sdcard_enter,
-		0,0,
-		0,
-		0,
-		v_do_function_copying_to_sdcard,
-		v_menu_show_copying_to_sdcard
-	);
-	v_init_menu_struct(
-		&v_struct_copy_to_sdcard_failed,
-		0,
-		&v_struct_show_sensor_fuel_consum_1_Trip_Tot,
-		0,
-		0,
-		v_do_function_copy_to_sdcard_failed,
-		v_menu_show_copy_to_sdcard_failed
-	);
+
 	v_init_menu_display_struct_table();
 	v_init_menu_setting_struct_table();
+	v_init_menu_struct_save_history_data_table();
+	
 	v_menu_enter_display();
 	v_menu_function();
 	if(v_menu_show_all_time){
@@ -1725,6 +1834,16 @@ void v_menu_init(void){
 }
 
 void v_menu_enter_short(void){
+       if(!v_menu_in_display){
+             v_setting_changed = 1;
+             if(&v_struct_setting_display_format_flow_L == v_cur_menu){
+                v_menu_display_format = v_menu_display_format_setting;
+                return;
+             }else if (&v_struct_setting_show_all_set == v_cur_menu){
+                v_menu_show_all_time = v_menu_show_all_time_setting;
+                return;
+             }
+       }
 	if(v_cur_menu && v_cur_menu->enter_menu){
 		v_cur_menu = v_cur_menu->enter_menu;
 		v_menu_function();
@@ -1735,7 +1854,7 @@ void v_menu_enter_3s(void){
 	v_menu_function();		
 }
 void v_menu_enter_6s(void){
-	v_menu_enter_save_data_to_sd();
+	v_menu_enter_save_history_data();
 	v_menu_function();
 }
 void v_menu_enter_15s(void){
@@ -1762,29 +1881,69 @@ void v_menu_esc_9s(void){
 	v_menu_enter_reset_all();
 }
 void v_menu_up_short(void){
+#if 0
 	if(!v_menu_in_display && v_menu_show_all_time == 0){ //in setting, not in show all, can't select pulse unit
 		if(v_cur_menu ==  &v_struct_setting_display_format_flow_L ||
 			v_cur_menu ==  &v_struct_setting_display_format_flow_L_enter){
 			return;
 		} 
 	}
+#else
+       if(!v_menu_in_display){
+             v_setting_changed = 1;
+             if(&v_struct_setting_display_format_flow_L == v_cur_menu){
+                if(v_menu_show_all_time ==0){
+                    v_menu_display_format_setting = V_MENU_DISPLAY_FORMAT_FLOW_L;
+                    return;
+                }
+                v_menu_display_format_setting = V_MENU_DISPLAY_FORMAT_PULSE;
+                return;
+             }else if (&v_struct_setting_show_all_set == v_cur_menu){
+                v_menu_show_all_time_setting = V_MENU_SETTING_LOCAL_SHOW_ALL_TIME;
+                return;
+             }
+       }
+#endif
 	if(v_cur_menu && v_cur_menu->up_menu) {
 		v_cur_menu = v_cur_menu->up_menu;
 		v_menu_function();
 	}
 }
 void v_menu_down_short(void){
+       if(!v_menu_in_display){
+             v_setting_changed = 1;
+             if(&v_struct_setting_display_format_flow_L == v_cur_menu){
+                v_menu_display_format_setting = V_MENU_DISPLAY_FORMAT_FLOW_L;
+                return;
+             }else if (&v_struct_setting_show_all_set == v_cur_menu){
+                v_menu_show_all_time_setting = 0;
+                return;
+             }
+       }
 	if(v_cur_menu && v_cur_menu->down_menu) {
 		v_cur_menu = v_cur_menu->down_menu;
 		v_menu_function();
 	}
 }
-
+/*
 void v_menu_show_all_timer_stop(){
 	if(v_menu_in_display){
-		v_do_function_setting_show_all_close_enter();
-		v_cur_menu = &v_struct_show_sensor_fuel_consum_1_Trip_Tot;
+		v_menu_enter_display();
 		v_menu_function();
-		v_menu_show_all_flag = 0;
 	}
+}
+*/
+static void v_menu_check_setting_changed(){
+    if(v_menu_in_display){
+          if(v_menu_latest_display_format != v_menu_display_format
+          ||v_menu_latest_show_all_time != v_menu_show_all_time){
+            	    v_menu_enter_display();
+            	    v_menu_function();
+            	         v_menu_latest_display_format = v_menu_display_format;
+                       v_menu_latest_show_all_time = v_menu_show_all_time;
+                       if(v_menu_show_all_time){
+            	        v_menu_show_all_start();
+               }
+          }
+     }
 }

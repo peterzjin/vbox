@@ -71,7 +71,9 @@ void v_menu_up_short(void);
 void v_menu_down_short(void);
 
 void v_menu_show(void);
-void v_menu_show_all_timer_stop(void);
-extern uint8_t v_menu_show_all_flag; //0:donothing, 1:changed by timer 
+
+extern uint32_t v_menu_display_format_setting;
+extern uint32_t v_menu_show_all_time_setting;
+extern uint8_t v_setting_changed;
 #endif
 

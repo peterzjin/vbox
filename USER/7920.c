@@ -232,7 +232,7 @@ void lcd_init()
 	send_command(0x02); 
 	send_command(0x80); 
 }
-/*
+#if 0
 void display_text() 
 { 
   uchar i;
@@ -262,7 +262,7 @@ void display_text()
 	} 	 
   delay_1ms(3000);
 } 
-*/
+
 
 
 
@@ -284,7 +284,7 @@ void gbchar(uchar data1,uchar data2,uchar gotoy,uchar gotox)
   send_command(0x36);
  // delay_1ms(0x10);
  }	 
-*/
+
 //	uint ver_cnt,hor_cnt;
 
 	send_command(0x36);
@@ -376,7 +376,7 @@ void PutBMP(unsigned char *puts)
   send_command(command_data);
  // delay_1ms(0x10);
  }	
-*/ 
+ 
 
  void wr_bord(void)
 {
@@ -428,7 +428,7 @@ void PutBMP(unsigned char *puts)
 	delay_1ms(500);
 
 }
-
+#endif
 void v_lcd_gpio_init(void)
 {
  GPIO_InitTypeDef  GPIO_InitStructure;
@@ -466,7 +466,65 @@ void v_menu_show_str(uint8_t v_location, char *str){
 	for(;i<32;i++){
 		send_data(' ');
 	} 	
-} 	 
+} 
+static uint8_t v_menu_show_inverse_0 = 0;
+static uint8_t v_menu_show_inverse_1 = 0;
+void v_menu_show_inverse(uint8_t v_location){
+       if(!v_location){
+           if(1 == v_menu_show_inverse_0) return;
+           send_command(0x34);
+	    send_command(0x04);
+	    v_menu_show_inverse_0 = 1;
+	}else{
+	     if(1 == v_menu_show_inverse_1) return;
+	    send_command(0x34);
+	    send_command(0x05);
+	    v_menu_show_inverse_1 = 1;
+	}
+	send_command(0x30);
+}
+void v_menu_clear_inverse(){
+         if(v_menu_show_inverse_0){
+            send_command(0x34);
+	     send_command(0x04);
+	     v_menu_show_inverse_0 = 0;
+         }
+         if(v_menu_show_inverse_1){
+            send_command(0x34);
+	     send_command(0x05);
+	     v_menu_show_inverse_1 = 0;
+         }
+         send_command(0x30);
+}
+/*
+void v_menu_show_str_inverse(uint8_t v_location, char *str){
+	uint8_t i;
+	send_command(0x34);
+	if(v_location!=0xFF){
+		send_command(v_location?0x90:0x80);
+	}else{
+		send_command(0x88);
+	} 		   
+	for(i=0;i<32&&str[i];i++ )
+	{ 
+	       send_command(0x30);
+		send_data(str[i]);
+	}
+		 
+	for(;i<32;i++){
+		send_data(' ');
+	} 	
+}
+*/
+void v_open_lcd(uint8_t open)
+{
+    if(open){
+        LEDA = (bit)(0);
+    }else{
+        send_command(0x01);
+        LEDA = (bit)(1);
+    }
+}
 void v_lcd_init() 
 {
 // 	RST=0;
@@ -475,7 +533,7 @@ void v_lcd_init()
 //	delay_1ms(50);
 //	uchar command_data;
 	v_lcd_gpio_init();
-	LEDA = (bit)(0);
+	v_open_lcd(1);
 	lcd_init();
 	delay_1ms(2);
 /*    while(1)

@@ -50,14 +50,16 @@ extern uint32_t v_menu_show_all_time;
 void v_menu_show_all_start()
 {
 	v_menu_timer_tmp = 0;
-	v_menu_show_all_flag = 0;
+//	v_buzz_key(); 
 	v_menu_timer_start(10000);//1s cycle
 }
 void v_menu_show_all_stop()
 {
 	v_menu_show_all_time = 0;
-	v_menu_show_all_flag = 1;
+	v_buzz_key(); 
 	v_menu_timer_stop();
+	v_menu_show_all_time_setting = 0;
+	v_setting_changed = 1;
 }
 void TIM4_IRQHandler(void)
 {

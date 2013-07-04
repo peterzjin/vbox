@@ -230,10 +230,7 @@ void v_key_judge(void)
 		return;
 	}
 	v_buzz_key(); 
-	if(v_menu_show_all_flag){
-		v_menu_show_all_timer_stop();
-		return ;
-	}
+
 	switch(v_key){
 		case V_KEY_ENTER_SHORT:
 //			Show_Str(60,130,"V_KEY_ENTER_SHORT",16,0);
