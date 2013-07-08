@@ -260,14 +260,16 @@ static void parse_uart_data(void)
 		case 0x07:
 			v_fuel_consum_1_correct =
 				u_buf[0] * 1000 + (u_buf[1] & 0x7F) * 10;
-
+                    v_fuel_consum_1_corrected =
+                            u_buf[1] & 0x80;
 			if (u_data_len == 0x02)
 				is_cmd = 1;
 			break;
 		case 0x08:
 			v_fuel_consum_2_correct =
 				u_buf[0] * 1000 + (u_buf[1] & 0x7F) * 10;
-
+                    v_fuel_consum_2_corrected =
+                            u_buf[1] & 0x80;
 			if (u_data_len == 0x02)
 				is_cmd = 1;
 			break;
@@ -364,9 +366,13 @@ static void parse_uart_data(void)
 
 			v_fuel_consum_2_correct =
 				u_buf[0] * 1000 + (u_buf[1] & 0x7F) * 10;
+		       v_fuel_consum_2_corrected =
+                            u_buf[1] & 0x80;
 			v_fuel_consum_1_correct =
 				u_buf[41] * 1000 + (u_buf[42] & 0x7F) * 10;
-
+                    v_fuel_consum_1_corrected =
+                            u_buf[42] & 0x80;
+                            
 			tmp = u_buf[43];
 			v_sensor_A_status = (tmp & 0x10) ? ((tmp & 0x01) ? 2 : 1) : 0;
 			v_sensor_B_status = (tmp & 0x20) ? ((tmp & 0x02) ? 2 : 1) : 0;

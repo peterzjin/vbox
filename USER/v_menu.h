@@ -30,6 +30,9 @@ extern uint32_t v_sensor_flow_smaple_time;			//0x09
 
 extern uint32_t v_fuel_consum_1_correct;			 	//0x07|0x08	 noneed
 extern uint32_t v_fuel_consum_2_correct;
+//0:need correct  1: have corrected 
+extern uint32_t v_fuel_consum_1_corrected;
+extern uint32_t v_fuel_consum_2_corrected;
 
 //0x3C|0x3F|0x3D
 extern uint32_t v_data_real_time;

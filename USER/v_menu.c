@@ -92,6 +92,9 @@ uint32_t v_sensor_flow_smaple_time;			//0x09
 
 uint32_t v_fuel_consum_1_correct;			 	//0x07|0x08	 noneed
 uint32_t v_fuel_consum_2_correct;
+//0:need correct  1: have corrected 
+uint32_t v_fuel_consum_1_corrected;
+uint32_t v_fuel_consum_2_corrected;
 
 //0x3C|0x3F|0x3D
 uint32_t v_data_real_time;
@@ -142,6 +145,13 @@ static void reset_all_data(void){
 cmd_data_available = 1;
 v_data_real_time = 56789;
 v_data_latest_real_time  = 56788;
+
+v_fuel_consum_1_correct = 20000;			 	//0x07|0x08	 noneed
+v_fuel_consum_2_correct = 20000;
+//0:need correct  1: have corrected 
+v_fuel_consum_1_corrected = 0;
+v_fuel_consum_2_corrected = 0;
+
 v_sensor_A_status = V_MENU_SENSOR_STATUS_NORMAL;
 v_sensor_B_status = V_MENU_SENSOR_STATUS_NORMAL;
 v_sensor_C_status = V_MENU_SENSOR_STATUS_NORMAL;
@@ -390,19 +400,55 @@ static void v_menu_show_instant_fuel_consum(uint32_t value){
 }
 
 //return status	 for individual sensor
-//sensor_index  0:A 1:B 2:C 3D
+//sensor_index  0:A 1:B 2:C 3:D
 //is_trip            0:trip 1:tot
+static float v_get_senosr_correct(uint8_t sensor_index){
+       float correct_factor = 1.0;
+       if(v_menu_display_format == V_MENU_DISPLAY_FORMAT_PULSE) return correct_factor;
+
+        switch(v_sensor_work_mode){
+            case 0x00:	//A-B
+            case 0x01:	//A
+            case 0x02:	//A+B-C-D
+            case 0x03:	//A+B-C
+            case 0x04:	//A-B-C
+            case 0x08:	//A+B+C-D
+            case 0x09:	//A+B
+            case 0x0A:	//A+B+C
+            case 0x0B:	//A+B+C+D
+                correct_factor = v_fuel_consum_1_corrected?1.0:(v_fuel_consum_1_correct/10000.0);
+            break;
+            case 0x05:      //A-B and C-D
+            case 0x06:	//A-B and C
+            case 0x07:	//A and C
+            {
+            	  switch(sensor_index){
+            	        case 0://A
+            	        case 1://B
+            	            correct_factor = v_fuel_consum_1_corrected?1.0:(v_fuel_consum_1_correct/10000.0);
+            	        break;
+            	        case 2://C
+            	        case 3://D
+            	            correct_factor = v_fuel_consum_2_corrected?1.0:(v_fuel_consum_2_correct/10000.0);
+            	        break;
+            	  }
+            }
+            break;
+        }
+       return correct_factor;
+}
 static uint32_t v_get_sensor_data(uint8_t sensor_index,uint8_t type){
        int32_t time_interval;
        int32_t flow;
+       float correct_factor = v_get_senosr_correct(sensor_index);
        switch(sensor_index){
             case 0://A
                if(v_sensor_A_status == V_MENU_SENSOR_STATUS_NORMAL){
                      if(type == V_MENU_SHOW_TYPE_TOT){
-		            return v_sensor_A_Tot;
+		            return v_sensor_A_Tot*correct_factor;
 		       }
 		       if(type == V_MENU_SHOW_TYPE_TRIP){
-		            return v_sensor_A_Trip;
+		            return v_sensor_A_Trip*correct_factor;
 		       }
 		       if(type == V_MENU_SHOW_TYPE_FLOW){
 		            if(v_sensor_A_latest_Tot== V_MENU_SHOW_STATUS_INVALID){
@@ -412,7 +458,7 @@ static uint32_t v_get_sensor_data(uint8_t sensor_index,uint8_t type){
                 	}else{
                 	       time_interval = (v_data_real_time-v_data_latest_real_time);
                 	       time_interval += time_interval<0?V_MENU_MAX_REAL_TIME_S:0;
-                		flow = (v_sensor_A_Tot - v_sensor_A_latest_Tot)/time_interval*3600;       		
+                		flow = (v_sensor_A_Tot - v_sensor_A_latest_Tot)*correct_factor/time_interval*3600;       		
                 		v_sensor_A_latest_Tot = v_sensor_A_Tot;
                 		v_data_latest_real_time = v_data_real_time;
                 		return flow<0?0 : flow;	
@@ -426,10 +472,10 @@ static uint32_t v_get_sensor_data(uint8_t sensor_index,uint8_t type){
             case 1://B
                 if(v_sensor_B_status == V_MENU_SENSOR_STATUS_NORMAL){
                     if(type == V_MENU_SHOW_TYPE_TOT){
-		            return v_sensor_B_Tot;
+		            return v_sensor_B_Tot*correct_factor;
 		       }
 		       if(type == V_MENU_SHOW_TYPE_TRIP){
-		            return v_sensor_B_Trip;
+		            return v_sensor_B_Trip*correct_factor;
 		       }
 		       if(type == V_MENU_SHOW_TYPE_FLOW){
 		            if(v_sensor_B_latest_Tot== V_MENU_SHOW_STATUS_INVALID){
@@ -439,7 +485,7 @@ static uint32_t v_get_sensor_data(uint8_t sensor_index,uint8_t type){
                         	}else{
                         	       time_interval = (v_data_real_time-v_data_latest_real_time);
                                    time_interval += time_interval<0?V_MENU_MAX_REAL_TIME_S:0;
-                        		flow = (v_sensor_B_Tot - v_sensor_B_latest_Tot)/time_interval*3600;
+                        		flow = (v_sensor_B_Tot - v_sensor_B_latest_Tot)*correct_factor/time_interval*3600;
                         		v_sensor_B_latest_Tot = v_sensor_B_Tot;
                         		v_data_latest_real_time = v_data_real_time;
                         		return flow<0?0 : flow;	
@@ -453,10 +499,10 @@ static uint32_t v_get_sensor_data(uint8_t sensor_index,uint8_t type){
             case 2://C
                 if(v_sensor_C_status == V_MENU_SENSOR_STATUS_NORMAL){
                     if(type == V_MENU_SHOW_TYPE_TOT){
-		            return v_sensor_C_Tot;
+		            return v_sensor_C_Tot*correct_factor;
 		       }
 		       if(type == V_MENU_SHOW_TYPE_TRIP){
-		            return v_sensor_C_Trip;
+		            return v_sensor_C_Trip*correct_factor;
 		       }
 		       if(type == V_MENU_SHOW_TYPE_FLOW){
 		            if(v_sensor_C_latest_Tot== V_MENU_SHOW_STATUS_INVALID){
@@ -466,7 +512,7 @@ static uint32_t v_get_sensor_data(uint8_t sensor_index,uint8_t type){
                         	}else{
                         	       time_interval = (v_data_real_time-v_data_latest_real_time);
                         	       time_interval += time_interval<0?V_MENU_MAX_REAL_TIME_S:0;
-                        		flow = (v_sensor_C_Tot - v_sensor_C_latest_Tot)/time_interval*3600;
+                        		flow = (v_sensor_C_Tot - v_sensor_C_latest_Tot)*correct_factor/time_interval*3600;
                         		v_sensor_C_latest_Tot = v_sensor_C_Tot;
                         		v_data_latest_real_time = v_data_real_time;
                         		return flow<0?0 : flow;	
@@ -480,10 +526,10 @@ static uint32_t v_get_sensor_data(uint8_t sensor_index,uint8_t type){
             case 3://D
                 if(v_sensor_D_status == V_MENU_SENSOR_STATUS_NORMAL){
                     if(type == V_MENU_SHOW_TYPE_TOT){
-		            return v_sensor_D_Tot;
+		            return v_sensor_D_Tot*correct_factor;
 		       }
 		       if(type == V_MENU_SHOW_TYPE_TRIP){
-		            return v_sensor_D_Trip;
+		            return v_sensor_D_Trip*correct_factor;
 		       }
 		       if(type == V_MENU_SHOW_TYPE_FLOW){
 		            if(v_sensor_D_latest_Tot== V_MENU_SHOW_STATUS_INVALID){
@@ -493,7 +539,7 @@ static uint32_t v_get_sensor_data(uint8_t sensor_index,uint8_t type){
                         	}else{
                         	       time_interval = (v_data_real_time-v_data_latest_real_time);
                         	       time_interval += time_interval<0?V_MENU_MAX_REAL_TIME_S:0;
-                        		flow = (v_sensor_D_Tot - v_sensor_D_latest_Tot)/time_interval*3600;
+                        		flow = (v_sensor_D_Tot - v_sensor_D_latest_Tot)*correct_factor/time_interval*3600;
                         		v_sensor_D_latest_Tot = v_sensor_D_Tot;
                         		v_data_latest_real_time = v_data_real_time;
                         		return flow<0?0 : flow;	
@@ -512,8 +558,20 @@ static uint32_t v_get_sensor_data(uint8_t sensor_index,uint8_t type){
 //return status	 for fuel consum
 //equip_index  1:equip 1 2:equip 2
 //is_trip              0:trip      1:tot   2:travel
+static float v_get_fuel_consum_correct(uint8_t equip_index){
+       float correct_factor = 1.0;
+       if(v_menu_display_format == V_MENU_DISPLAY_FORMAT_PULSE) return correct_factor;
+
+        if(equip_index == 1){
+            correct_factor = v_fuel_consum_1_corrected?1.0:(v_fuel_consum_1_correct/10000.0);
+        }else{
+            correct_factor = v_fuel_consum_2_corrected?1.0:(v_fuel_consum_2_correct/10000.0);
+        }
+       return correct_factor;
+}
 static uint32_t v_get_fuel_consum_data(uint8_t equip_index,uint8_t type){
        int32_t fuel_consum;
+       float correct_factor = v_get_fuel_consum_correct(equip_index);
        if(equip_index == 1){
         	switch(v_sensor_work_mode){
         		case 0x00:	//A-B
@@ -524,11 +582,11 @@ static uint32_t v_get_fuel_consum_data(uint8_t equip_index,uint8_t type){
         			&& v_sensor_B_status == V_MENU_SENSOR_STATUS_NORMAL){
         			       if(type == V_MENU_SHOW_TYPE_TOT){
         			            fuel_consum = v_sensor_A_Tot-v_sensor_B_Tot;
-        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? (fuel_consum*correct_factor) : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRIP){
         			            fuel_consum = v_sensor_A_Trip-v_sensor_B_Trip;
-        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? (fuel_consum*correct_factor) : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRAVEL){
         			            return v_fuel_consum_1_travel_consum;
@@ -546,11 +604,11 @@ static uint32_t v_get_fuel_consum_data(uint8_t equip_index,uint8_t type){
         			if(v_sensor_A_status == V_MENU_SENSOR_STATUS_NORMAL){
         		 		if(type == V_MENU_SHOW_TYPE_TOT){
         			            fuel_consum = v_sensor_A_Tot;
-        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? (fuel_consum*correct_factor) : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRIP){
         			            fuel_consum = v_sensor_A_Trip;
-        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? (fuel_consum*correct_factor) : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRAVEL){
         			            return v_fuel_consum_1_travel_consum;
@@ -571,12 +629,12 @@ static uint32_t v_get_fuel_consum_data(uint8_t equip_index,uint8_t type){
         		 		{
         			            fuel_consum = v_sensor_A_Tot+v_sensor_B_Tot
         			                        -v_sensor_C_Tot-v_sensor_D_Tot;
-        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? (fuel_consum*correct_factor) : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRIP){
         			            fuel_consum = v_sensor_A_Trip+v_sensor_B_Trip
         			                        -v_sensor_C_Trip-v_sensor_D_Trip;
-        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? (fuel_consum*correct_factor) : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRAVEL){
         			            return v_fuel_consum_1_travel_consum;
@@ -598,12 +656,12 @@ static uint32_t v_get_fuel_consum_data(uint8_t equip_index,uint8_t type){
         		 		if(type == V_MENU_SHOW_TYPE_TOT){
         			            fuel_consum = v_sensor_A_Tot+v_sensor_B_Tot
         			                        -v_sensor_C_Tot;
-        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? (fuel_consum*correct_factor) : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRIP){
         			            fuel_consum = v_sensor_A_Trip+v_sensor_B_Trip
         			                        -v_sensor_C_Trip;
-        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? (fuel_consum*correct_factor) : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRAVEL){
         			            return v_fuel_consum_1_travel_consum;
@@ -624,12 +682,12 @@ static uint32_t v_get_fuel_consum_data(uint8_t equip_index,uint8_t type){
         		 		if(type == V_MENU_SHOW_TYPE_TOT){
         			            fuel_consum = v_sensor_A_Tot-v_sensor_B_Tot
         			                        -v_sensor_C_Tot;
-        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? (fuel_consum*correct_factor) : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRIP){
         			            fuel_consum = v_sensor_A_Trip-v_sensor_B_Trip
         			                        -v_sensor_C_Trip;
-        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? (fuel_consum*correct_factor) : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRAVEL){
         			            return v_fuel_consum_1_travel_consum;
@@ -651,12 +709,12 @@ static uint32_t v_get_fuel_consum_data(uint8_t equip_index,uint8_t type){
         		 		if(type == V_MENU_SHOW_TYPE_TOT){
         			            fuel_consum = v_sensor_A_Tot+v_sensor_B_Tot
         			                        +v_sensor_C_Tot-v_sensor_D_Tot;
-        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? (fuel_consum*correct_factor) : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRIP){
         			            fuel_consum = v_sensor_A_Trip+v_sensor_B_Trip
         			                        +v_sensor_C_Trip-v_sensor_D_Trip;
-        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? (fuel_consum*correct_factor) : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRAVEL){
         			            return v_fuel_consum_1_travel_consum;
@@ -676,11 +734,11 @@ static uint32_t v_get_fuel_consum_data(uint8_t equip_index,uint8_t type){
         			&& v_sensor_B_status == V_MENU_SENSOR_STATUS_NORMAL){
         		 		if(type == V_MENU_SHOW_TYPE_TOT){
         			            fuel_consum = v_sensor_A_Tot+v_sensor_B_Tot;
-        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? (fuel_consum*correct_factor) : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRIP){
         			            fuel_consum = v_sensor_A_Trip+v_sensor_B_Trip;
-        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? (fuel_consum*correct_factor) : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRAVEL){
         			            return v_fuel_consum_1_travel_consum;
@@ -700,12 +758,12 @@ static uint32_t v_get_fuel_consum_data(uint8_t equip_index,uint8_t type){
         		 		if(type == V_MENU_SHOW_TYPE_TOT){
         			            fuel_consum = v_sensor_A_Tot+v_sensor_B_Tot
         			                        +v_sensor_C_Tot;
-        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? (fuel_consum*correct_factor) : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRIP){
         			            fuel_consum = v_sensor_A_Trip+v_sensor_B_Trip
         			                        +v_sensor_C_Trip;
-        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? (fuel_consum*correct_factor) : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			}
         			if(v_sensor_A_status == V_MENU_SENSOR_STATUS_NOT_IN_USE 
@@ -724,12 +782,12 @@ static uint32_t v_get_fuel_consum_data(uint8_t equip_index,uint8_t type){
         		 		if(type == V_MENU_SHOW_TYPE_TOT){
         			            fuel_consum = v_sensor_A_Tot+v_sensor_B_Tot
         			                        +v_sensor_C_Tot+v_sensor_D_Tot;
-        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? (fuel_consum*correct_factor) : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRIP){
         			            fuel_consum = v_sensor_A_Trip+v_sensor_B_Trip
         			                        +v_sensor_C_Trip+v_sensor_D_Trip;
-        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? (fuel_consum*correct_factor) : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRAVEL){
         			            return v_fuel_consum_1_travel_consum;
@@ -754,11 +812,11 @@ static uint32_t v_get_fuel_consum_data(uint8_t equip_index,uint8_t type){
         			&& v_sensor_D_status == V_MENU_SENSOR_STATUS_NORMAL){
         		 		if(type == V_MENU_SHOW_TYPE_TOT){
         			            fuel_consum = v_sensor_C_Tot-v_sensor_D_Tot;
-        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? (fuel_consum*correct_factor) : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRIP){
         			            fuel_consum = v_sensor_C_Trip-v_sensor_D_Trip;
-        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? (fuel_consum*correct_factor) : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRAVEL){
         			            return v_fuel_consum_1_travel_consum;
@@ -775,11 +833,11 @@ static uint32_t v_get_fuel_consum_data(uint8_t equip_index,uint8_t type){
         			if(v_sensor_C_status == V_MENU_SENSOR_STATUS_NORMAL){
         		 		if(type == V_MENU_SHOW_TYPE_TOT){
         			            fuel_consum =  v_sensor_C_Tot;
-        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? (fuel_consum*correct_factor) : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRIP){
         			            fuel_consum = v_sensor_C_Trip;
-        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? (fuel_consum*correct_factor) : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRAVEL){
         			            return v_fuel_consum_1_travel_consum;
@@ -795,11 +853,11 @@ static uint32_t v_get_fuel_consum_data(uint8_t equip_index,uint8_t type){
         			if(v_sensor_C_status == V_MENU_SENSOR_STATUS_NORMAL){
         		 		if(type == V_MENU_SHOW_TYPE_TOT){
         			            fuel_consum =  v_sensor_C_Tot;
-        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? (fuel_consum*correct_factor) : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRIP){
         			            fuel_consum = v_sensor_C_Trip;
-        			            return fuel_consum>=0 ? fuel_consum : V_MENU_SHOW_STATUS_ABNORMAL;
+        			            return fuel_consum>=0 ? (fuel_consum*correct_factor) : V_MENU_SHOW_STATUS_ABNORMAL;
         			       }
         			       if(type == V_MENU_SHOW_TYPE_TRAVEL){
         			            return v_fuel_consum_1_travel_consum;
@@ -1063,7 +1121,7 @@ static void v_menu_show_save_history_data_succeed(void){
 		v_menu_show_str(0," Save succeed!");
 		v_menu_show_str(1,"");
 	}else if(v_menu_language ==  V_MENU_LANGUAGE_CN){
-		v_menu_show_str(0,"历史数据复制失败!");
+		v_menu_show_str(0,"历史数据复制成功!");
 		v_menu_show_str(1,"");
 	}
 	v_menu_clear_inverse();
