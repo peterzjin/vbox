@@ -946,6 +946,28 @@ static void v_menu_setting_select_show_all(void){
 	 v_menu_clear_inverse();
 	v_menu_show_inverse(1);
 }
+static void v_menu_setting_select_reboot(void){
+	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
+		v_menu_show_str(0,"     Open All");
+		v_menu_show_str(1,"Pick Reboot");
+	}else if(v_menu_language ==  V_MENU_LANGUAGE_CN){
+		v_menu_show_str(0,"      开启全显");
+		v_menu_show_str(1,"选择  重新启动");
+	}
+	v_menu_clear_inverse();
+	v_menu_show_inverse(1);
+}
+static void v_menu_setting_select_reboot_hint(void){
+	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
+		v_menu_show_str(0,"Sure to reboot?");
+		v_menu_show_str(1,"                   yes");
+	}else if(v_menu_language ==  V_MENU_LANGUAGE_CN){
+		v_menu_show_str(0,"确定重启设备?");
+		v_menu_show_str(1,"              是");
+	}
+	v_menu_clear_inverse();
+	v_menu_show_inverse(1);
+}
 static void v_menu_setting_display_format_flow_L(void){
        if(v_menu_display_format_setting == V_MENU_DISPLAY_FORMAT_FLOW_L){
         	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
@@ -1023,6 +1045,7 @@ static void v_menu_show_save_history_data(void){
 		v_menu_show_str(1,"              是");
 	}
 	v_menu_clear_inverse();
+	v_menu_show_inverse(1);
 }
 static void v_menu_show_saving_history_data(void){
 	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
@@ -1163,6 +1186,21 @@ static void v_do_function_setting_select_show_all(void){
 	//v_menu_show_wating();
 	v_setting_changed = 1;
 }
+static void v_do_function_setting_select_reboot(void){
+	//v_menu_show_wating();
+	v_setting_changed = 1;
+}
+static void v_do_function_setting_select_reboot_hint(void){
+	//v_menu_show_wating();
+	v_setting_changed = 1;
+}
+static void v_do_function_setting_select_reboot_enter(void){
+	//v_menu_show_wating();
+	v_setting_changed = 1;
+	v_buzz_alarm_2s();
+	delay_ms(500);
+	NVIC_SystemReset();
+}
 static void v_do_function_setting_display_format_flow_L(void){
        v_setting_changed = 1;
        v_menu_display_format_setting= v_menu_display_format;
@@ -1229,6 +1267,9 @@ static v_menu_struct_t v_struct_show_sensor_C_D_flow;
 /*struct for menu setting*/
 static v_menu_struct_t v_struct_setting_select_display_format;
 static v_menu_struct_t v_struct_setting_select_show_all;
+static v_menu_struct_t v_struct_setting_select_reboot;
+static v_menu_struct_t v_struct_setting_select_reboot_hint;
+static v_menu_struct_t v_struct_setting_select_reboot_enter;
 static v_menu_struct_t v_struct_setting_display_format_flow_L;
 //static v_menu_struct_t v_struct_setting_display_format_flow_L_enter;
 //static v_menu_struct_t v_struct_setting_display_format_pulse;
@@ -1572,9 +1613,36 @@ static void v_init_menu_setting_struct_table(void){
 		&v_struct_setting_show_all_set,
 		0,
 		&v_struct_setting_select_display_format,
-		0,
+		&v_struct_setting_select_reboot,
 		v_do_function_setting_select_show_all,
 		v_menu_setting_select_show_all
+	);
+	v_init_menu_struct(
+		&v_struct_setting_select_reboot,
+		&v_struct_setting_select_reboot_hint,
+		0,
+		&v_struct_setting_select_show_all,
+		0,
+		v_do_function_setting_select_reboot,
+		v_menu_setting_select_reboot
+	);
+	v_init_menu_struct(
+		&v_struct_setting_select_reboot_hint,
+		&v_struct_setting_select_reboot_enter,
+		&v_struct_setting_select_reboot,
+		0,
+		0,
+		v_do_function_setting_select_reboot_hint,
+		v_menu_setting_select_reboot_hint
+	);
+	v_init_menu_struct(
+		&v_struct_setting_select_reboot_enter,
+		0,
+		0,
+		0,
+		0,
+		v_do_function_setting_select_reboot_enter,
+		v_menu_setting_select_reboot_hint
 	);
 	v_init_menu_struct(
 		&v_struct_setting_display_format_flow_L,
