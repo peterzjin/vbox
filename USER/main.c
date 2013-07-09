@@ -26,7 +26,6 @@
 
  int main(void)
  {
-//	FATFS fs;
  	SystemInit();
 	delay_init(72);	     //延时初始化
 	NVIC_Configuration();
@@ -37,8 +36,6 @@
 	v_buzz_init();
 	al_timer_init();
 	timo_timer_init();
-//	SPI_Flash_Init();	//SPI FLASH初始化
-//	f_mount(0, &fs);
 	v_menu_timer_init();
 	v_buzz_timer_init();
 	v_menu_init();

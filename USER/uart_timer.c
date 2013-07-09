@@ -260,16 +260,16 @@ static void parse_uart_data(void)
 		case 0x07:
 			v_fuel_consum_1_correct =
 				u_buf[0] * 1000 + (u_buf[1] & 0x7F) * 10;
-                    v_fuel_consum_1_corrected =
-                            u_buf[1] & 0x80;
+			v_fuel_consum_1_corrected =
+				u_buf[1] & 0x80;
 			if (u_data_len == 0x02)
 				is_cmd = 1;
 			break;
 		case 0x08:
 			v_fuel_consum_2_correct =
 				u_buf[0] * 1000 + (u_buf[1] & 0x7F) * 10;
-                    v_fuel_consum_2_corrected =
-                            u_buf[1] & 0x80;
+			v_fuel_consum_2_corrected =
+				u_buf[1] & 0x80;
 			if (u_data_len == 0x02)
 				is_cmd = 1;
 			break;
@@ -366,13 +366,13 @@ static void parse_uart_data(void)
 
 			v_fuel_consum_2_correct =
 				u_buf[0] * 1000 + (u_buf[1] & 0x7F) * 10;
-		       v_fuel_consum_2_corrected =
-                            u_buf[1] & 0x80;
+			v_fuel_consum_2_corrected =
+				u_buf[1] & 0x80;
 			v_fuel_consum_1_correct =
 				u_buf[41] * 1000 + (u_buf[42] & 0x7F) * 10;
-                    v_fuel_consum_1_corrected =
-                            u_buf[42] & 0x80;
-                            
+			v_fuel_consum_1_corrected =
+				u_buf[42] & 0x80;
+
 			tmp = u_buf[43];
 			v_sensor_A_status = (tmp & 0x10) ? ((tmp & 0x01) ? 2 : 1) : 0;
 			v_sensor_B_status = (tmp & 0x20) ? ((tmp & 0x02) ? 2 : 1) : 0;
@@ -787,8 +787,9 @@ static void gen_file_name(uint8_t *car_plate, uint8_t *cur_date, TCHAR *filename
 // 1: error
 int query_store_history(void)
 {
-	uint32_t i, bw;
-	uint8_t query_id[2], *cur_ptr;
+	uint32_t i, j, bw, max_retry = 5;
+	uint8_t query_id[2], *cur_ptr, res;
+	FATFS fs;
 	FIL file;
 	TCHAR filename[32];
 
@@ -806,24 +807,40 @@ int query_store_history(void)
 
 	cur_ptr = data_write_buf;
 	gen_file_name(car_plate, cur_date, filename);
-	f_open(&file, filename, FA_WRITE | FA_CREATE_ALWAYS);
+
+	res = f_mount(0, &fs);
+	if (res)
+		return 1;
+
+	res = f_open(&file, filename, FA_WRITE | FA_CREATE_ALWAYS);
+	if (res)
+		goto err_out1;
 
 	for (i = 0; i < data_tot_num; i++) {
 		cur_query_id = cur_data_id - i;
 		query_id[0] = cur_query_id & 0xFF;
 		query_id[1] = ((cur_query_id & 0xFF00) >> 8);
 
-		send_cmd(QUERY_DATA_BY_ID, query_id, 2);
-		if (wait_for_cmd(QUERY_DATA_TOT_CUR_ID))
+		for (j = 0; j < max_retry; j++) {
+			send_cmd(QUERY_DATA_BY_ID, query_id, 2);
+			if (wait_for_cmd(QUERY_DATA_BY_ID))
+				continue;
+			else
+				break;
+		}
+		if (j == max_retry)
 			goto out;
 
 		memcpy(cur_ptr, history_data, HISTORY_DATA_MAX_LEN);
 		cur_ptr += HISTORY_DATA_MAX_LEN;
 
-		if ((cur_ptr - data_write_buf) >= FS_SECTOR_SIZE) {
-			f_write(&file, data_write_buf,
+		if ((cur_ptr - data_write_buf) > FS_SECTOR_SIZE) {
+			res = f_write(&file, data_write_buf,
 					FS_SECTOR_SIZE, &bw);
-			memcpy(data_write_buf, cur_ptr,
+			if (res)
+				goto err_out;
+
+			memcpy(data_write_buf, data_write_buf + FS_SECTOR_SIZE,
 					cur_ptr - data_write_buf - FS_SECTOR_SIZE);
 			cur_ptr = cur_ptr - FS_SECTOR_SIZE;
 		}
@@ -832,6 +849,13 @@ int query_store_history(void)
 out:
 	f_write(&file, data_write_buf, cur_ptr - data_write_buf, &bw);
 	f_close(&file);
+	f_mount(0, NULL);
 
 	return i == data_tot_num ? 0 : 1;
+
+err_out:
+	f_close(&file);
+err_out1:
+	f_mount(0, NULL);
+	return 1;
 }
