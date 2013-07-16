@@ -783,6 +783,25 @@ static void gen_file_name(uint8_t *car_plate, uint8_t *cur_date, TCHAR *filename
 	filename[offset++] = 't';
 }
 
+#define CARD_DETECT GPIO_Pin_7
+
+void cd_key_init(void)
+{
+	GPIO_InitTypeDef  GPIO_InitStructure;
+
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+	GPIO_InitStructure.GPIO_Pin = CARD_DETECT;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
+	GPIO_Init(GPIOA, &GPIO_InitStructure);
+}
+
+// 0: no sdcard
+// 1: detected sdcard
+int detect_sdcard(void)
+{
+	return GPIO_ReadInputDataBit(GPIOA, CARD_DETECT);
+}
+
 // 0: sucess
 // 1: error
 int query_store_history(void)
@@ -823,9 +842,7 @@ int query_store_history(void)
 
 		for (j = 0; j < max_retry; j++) {
 			send_cmd(QUERY_DATA_BY_ID, query_id, 2);
-			if (wait_for_cmd(QUERY_DATA_BY_ID))
-				continue;
-			else
+			if (!wait_for_cmd(QUERY_DATA_BY_ID))
 				break;
 		}
 		if (j == max_retry)

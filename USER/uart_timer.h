@@ -14,6 +14,9 @@ int wait_for_cmd(uint8_t cmd_index);
 
 int query_store_history(void);
 
+void cd_key_init(void);
+int detect_sdcard(void);
+
 enum e_uart_cmds {
 	GET_DATE_TIME,			//0x00
 	GET_RESET_ENABLE,		//0x01

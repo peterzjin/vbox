@@ -34,6 +34,7 @@
   	v_key_init();	
 	v_lcd_init();
 	v_buzz_init();
+	cd_key_init();
 	al_timer_init();
 	timo_timer_init();
 	v_menu_timer_init();
