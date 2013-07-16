@@ -245,15 +245,18 @@ static void v_menu_function(void){
 	}
 }
 
+uint8_t v_menu_changed;
 uint8_t v_setting_changed;
 static void v_menu_check_setting_changed(void);
 void v_menu_show(void){
 	if(v_cur_menu){
 	        v_menu_check_setting_changed();
 		if(v_menu_in_display){
-#ifndef DEBUG
-		   if( !(cmd_data_available&V_MENU_SHOW_DATA_MASK)) return;
-#endif   
+                 if(!v_menu_changed){
+		      if( !(cmd_data_available&V_MENU_SHOW_DATA_MASK)) return;
+                 }else{
+                    v_menu_changed = 0;
+                 }
 		   if(v_cur_menu->menu_show)	v_cur_menu->menu_show();
 		   cmd_data_available &= ~V_MENU_SHOW_DATA_MASK;
 		}else{
@@ -264,6 +267,7 @@ void v_menu_show(void){
 	}
 }
 /*needed string*/
+static char *v_menu_lang_init;
 static char *v_menu_lang_fuel;
 static char *v_menu_lang_fuel_trip;
 static char *v_menu_lang_instant_fuel_consum;
@@ -339,8 +343,9 @@ static uint32_t v_menu_show_check_value_error(uint8_t line,uint32_t value){
 	return value;
 }
 static void v_menu_show_wating(){
-	v_menu_show_str(0,"   waiting...");
-	v_menu_show_str(1,"");
+//	v_menu_show_str(0,"   waiting...");
+//	v_menu_show_str(1,"");
+       v_menu_changed = 1;
 }
 static void v_menu_show_time(uint8_t line, uint32_t time){
        v_menu_clear_inverse();
@@ -1933,14 +1938,14 @@ static int v_menu_init_settings(void){
 }
 void v_menu_init(void){
 	int ret = 0;
-	v_menu_show_str(0,"    Init...");
+//	v_menu_show_str(0,"    Init...");
 	if((ret = v_menu_init_settings()) != 0){
-		sprintf(v_sprintf_buff,"Init failed %d!",ret);
-		v_menu_show_str(0,v_sprintf_buff);
-		v_menu_show_str(1,"");
+//		sprintf(v_sprintf_buff,"Init failed %d!",ret);
+//		v_menu_show_str(0,v_sprintf_buff);
+//		v_menu_show_str(1,"");
 		while(1);
 	}
-	v_menu_show_str(0," Init succeed!");	
+//	v_menu_show_str(0," Init succeed!");	
 	v_init_language_hint_string();
 	
 	v_menu_latest_display_format = v_menu_display_format;
