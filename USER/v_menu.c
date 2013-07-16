@@ -1794,7 +1794,7 @@ static void v_menu_enter_display(void){
 	v_cur_menu = &v_struct_show_sensor_fuel_consum_1_Trip_Tot;
 }
 static void v_menu_enter_save_history_data(void){
-	v_cur_menu = &v_struct_save_history_data;
+	    v_cur_menu = &v_struct_save_history_data;
 }
 static void v_menu_enter_save_history_data_succeed(void){
 	v_cur_menu = &v_struct_save_history_data_succeed;
@@ -1981,17 +1981,24 @@ void v_menu_enter_short(void){
 	}
 }
 void v_menu_enter_3s(void){
-	v_menu_enter_setting();
-	v_menu_function();		
+        if(v_menu_in_display){
+	    v_menu_enter_setting();
+	    v_menu_function();
+	    v_buzz_key();
+	 }
 }
 void v_menu_enter_6s(void){
-	v_menu_enter_save_history_data();
-	v_menu_function();
+       if(detect_sdcard()){
+    	    v_menu_enter_save_history_data();
+    	    v_menu_function();
+    	    v_buzz_key();
+    	 }
 }
 void v_menu_enter_15s(void){
 	if(!v_menu_in_display){
 		v_menu_enter_display();
 		v_menu_function();
+		v_buzz_key();
 	}
 }
 void v_menu_esc_short(void){

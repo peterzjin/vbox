@@ -160,21 +160,18 @@ void v_key_scan(void)
 						{
 							flag_15S_over = 1;						
 							v_menu_enter_15s();
-							v_buzz_key();
 						}
 					}else if(i>V_KEY_CHECK_6S){
 						if(flag_6S_over == 0)
 						{
 							flag_6S_over = 1;						
 							v_menu_enter_6s();
-							v_buzz_key();
 						}
 					}else if(i>V_KEY_CHECK_3S){
 						if(flag_3S_over == 0)
 						{
 							flag_3S_over = 1;
 							v_menu_enter_3s();
-							v_buzz_key();
 						}
 					}else{	    	
 						//v_key = V_KEY_ENTER_SHORT;
