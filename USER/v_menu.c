@@ -60,14 +60,24 @@ typedef struct v_menu_struct
 static v_menu_struct_t *v_cur_menu;
 
 uint8_t v_menu_show_all_flag = 0;
+uint8_t v_menu_sleep_wakeup;
 static uint32_t v_menu_show_all_time_origin;
 static uint8_t v_menu_in_display = 1;		//in diplay flag
 static uint32_t v_menu_show_last_value_0;
 static uint32_t v_menu_show_last_value_1;
 static uint32_t v_menu_show_error_count_0;
 static uint32_t v_menu_show_error_count_1;
-static uint32_t v_menu_latest_display_format;
+
+static uint32_t v_menu_latest_sleep;
+static uint32_t v_menu_latest_language;
 static uint32_t v_menu_latest_show_all_time;
+static uint32_t v_menu_latest_display_format;
+static uint32_t v_sensor_latest_work_mode;
+static uint32_t v_sensor_latest_error_delay_time;
+static uint32_t v_sensor_latest_instant_fuel_consum_1_alarm;
+static uint32_t v_sensor_latest_instant_fuel_consum_2_alarm;
+static uint32_t v_sensor_latest_fuel_consum_sample_time;
+static uint32_t v_sensor_latest_flow_smaple_time;
 
 uint32_t v_menu_display_format_setting;
 uint32_t v_menu_show_all_time_setting;
@@ -145,7 +155,8 @@ static void reset_all_data(void){
 cmd_data_available = 1;
 v_data_real_time = 56789;
 v_data_latest_real_time  = 56788;
-
+//v_menu_sleep=1;
+//v_menu_sleep_wakeup = 0;
 v_fuel_consum_1_correct = 20000;			 	//0x07|0x08	 noneed
 v_fuel_consum_2_correct = 20000;
 //0:need correct  1: have corrected 
@@ -250,15 +261,18 @@ uint8_t v_setting_changed;
 static void v_menu_check_setting_changed(void);
 void v_menu_show(void){
 	if(v_cur_menu){
-	        v_menu_check_setting_changed();
+	    v_menu_check_setting_changed();
+		if(v_menu_sleep && !v_menu_sleep_wakeup){
+			return;
+		}
 		if(v_menu_in_display){
-                 if(!v_menu_changed){
-		      if( !(cmd_data_available&V_MENU_SHOW_DATA_MASK)) return;
-                 }else{
-                    v_menu_changed = 0;
-                 }
-		   if(v_cur_menu->menu_show)	v_cur_menu->menu_show();
-		   cmd_data_available &= ~V_MENU_SHOW_DATA_MASK;
+			if(!v_menu_changed){
+		      	if( !(cmd_data_available&V_MENU_SHOW_DATA_MASK) ) return;
+			}else{
+				v_menu_changed = 0;
+			}
+		    if(v_cur_menu->menu_show)	v_cur_menu->menu_show();
+		    cmd_data_available &= ~V_MENU_SHOW_DATA_MASK;
 		}else{
 		    if(!v_setting_changed) return;
 		    if(v_cur_menu->menu_show) v_cur_menu->menu_show();
@@ -1905,12 +1919,52 @@ static void v_init_menu_struct_save_history_data_table(void){
 		v_menu_show_save_history_data_failed
 	);
 }
+void v_menu_notify_display_format_changed(void){
+	uint8_t tmp = v_menu_display_format;
+	send_cmd(DISPLAY_FORMAT,&tmp,1);
+}
+void v_menu_notify_show_all_time_changed(void){
+	uint8_t tmp = v_menu_show_all_time;
+	send_cmd(DISPLAY_FORMAT,&tmp,1);
+}
+void v_menu_show_all_time_action(void){
+	if(v_menu_show_all_time == 0){ 
+        v_menu_timer_stop();    	        
+	}else{
+		v_menu_show_all_start();
+	}
+}
+void v_menu_sleep_action(void){
+	if(v_menu_sleep&&!v_menu_sleep_wakeup){
+		v_lcd_backlight(0);
+		stop_cmd_loop();
+		v_menu_timer_stop();
+		v_menu_sleep_wakeup = 0;
+	}else{
+	        v_lcd_backlight(1);
+		v_menu_enter_display();
+		v_menu_function();
+	}
+}
+static void v_menu_backup_settings(void){
+	v_menu_latest_sleep = v_menu_sleep;
+	v_menu_latest_language = v_menu_language;
+	v_menu_latest_show_all_time = v_menu_show_all_time;
+	v_menu_latest_display_format = v_menu_display_format;
+	v_sensor_latest_work_mode = v_sensor_work_mode;
+	v_sensor_latest_error_delay_time = v_sensor_error_delay_time;
+	v_sensor_latest_instant_fuel_consum_1_alarm = v_sensor_instant_fuel_consum_1_alarm;
+	v_sensor_latest_instant_fuel_consum_2_alarm = v_sensor_instant_fuel_consum_2_alarm;
+	v_sensor_latest_fuel_consum_sample_time = v_sensor_fuel_consum_sample_time;
+	v_sensor_latest_flow_smaple_time = v_sensor_flow_smaple_time;
+}
 static int v_menu_init_settings(void){
 #ifdef DEBUG
 	v_menu_language = V_MENU_LANGUAGE_CN;
 	v_menu_display_format = V_MENU_DISPLAY_FORMAT_PULSE;//V_MENU_DISPLAY_FORMAT_FLOW_L;
 	v_menu_show_all_time = 1;
-	
+	v_menu_sleep = 1;
+
 	v_sensor_work_mode = 0x05;
 	v_sensor_error_delay_time = 15;
 	
@@ -1921,7 +1975,7 @@ static int v_menu_init_settings(void){
 	v_sensor_flow_smaple_time = 3;
 	
 #else
-	if(v_menu_send_and_wait_messge(MENU_LANGUAGE))   return -1;
+       if(v_menu_send_and_wait_messge(MENU_LANGUAGE))   return -1;
 	if(v_menu_send_and_wait_messge(DISPLAY_FORMAT))  return -2;
 	if(v_menu_send_and_wait_messge(DISPLAY_DELAY_TIME)) return -3;
     if(v_menu_send_and_wait_messge(SENSOR_WOKR_MODE)) return -4;
@@ -1931,6 +1985,7 @@ static int v_menu_init_settings(void){
     if(v_menu_send_and_wait_messge(FC_SAMPLE_TIME)) return -8;
     if(v_menu_send_and_wait_messge(FLOW_SAMPLE_TIME)) return -9;
 	if(v_menu_send_and_wait_messge(CAR_PLATE)) return -10;
+//	if(v_menu_send_and_wait_messge(REQUEST_SLEEP)) return -11;
 //  if(v_menu_send_and_wait_messge(FC1_CORRECTION)) return -11;
 //  if(v_menu_send_and_wait_messge(FC2_CORRECTION)) return -12;
 #endif
@@ -1945,33 +2000,37 @@ void v_menu_init(void){
 //		v_menu_show_str(1,"");
 		while(1);
 	}
+	v_menu_sleep = 0;
 //	v_menu_show_str(0," Init succeed!");	
+       v_menu_backup_settings();
 	v_init_language_hint_string();
-	
-	v_menu_latest_display_format = v_menu_display_format;
-	v_menu_latest_show_all_time = v_menu_show_all_time;
-	
 //	v_cur_menu = &v_struct_setting_select_display_format;
 
 	v_init_menu_display_struct_table();
 	v_init_menu_setting_struct_table();
 	v_init_menu_struct_save_history_data_table();
-	
+	if(v_menu_sleep){
+		v_lcd_backlight(0);
+		v_menu_sleep_wakeup = 0;
+		return;
+	}
+	v_lcd_backlight(1);
 	v_menu_enter_display();
 	v_menu_function();
-	if(v_menu_show_all_time){
-	    v_menu_show_all_start();
-	 }
+	v_menu_show_all_time_action();
 }
 
 void v_menu_enter_short(void){
        if(!v_menu_in_display){
              v_setting_changed = 1;
              if(&v_struct_setting_display_format_flow_L == v_cur_menu){
-                v_menu_display_format = v_menu_display_format_setting;
+                v_menu_display_format = v_menu_latest_display_format = v_menu_display_format_setting;
+				v_menu_notify_display_format_changed();
                 return;
              }else if (&v_struct_setting_show_all_set == v_cur_menu){
-                v_menu_show_all_time = v_menu_show_all_time_setting;
+                v_menu_show_all_time = v_menu_latest_show_all_time = v_menu_show_all_time_setting;
+				v_menu_notify_show_all_time_changed();
+				v_menu_show_all_time_action();
                 return;
              }
        }
@@ -2071,6 +2130,7 @@ void v_menu_show_all_timer_stop(){
 	}
 }
 */
+/*
 static void v_menu_check_setting_changed(){
     if(v_menu_in_display){
           if(v_menu_latest_display_format != v_menu_display_format
@@ -2080,8 +2140,61 @@ static void v_menu_check_setting_changed(){
             	         v_menu_latest_display_format = v_menu_display_format;
                        v_menu_latest_show_all_time = v_menu_show_all_time;
                        if(v_menu_show_all_time){
-            	        v_menu_show_all_start();
-               }
+                	        v_menu_show_all_start();
+                   }
           }
      }
 }
+*/
+
+static void v_menu_check_setting_changed(void){
+	int need_restart = 0;
+	if(v_menu_sleep != v_menu_latest_sleep){
+ 		v_menu_sleep_action();
+		need_restart = 1;
+	}
+	if(v_menu_language!=v_menu_latest_language){
+		v_setting_changed = 1;
+	}
+	if(v_menu_show_all_time != v_menu_latest_show_all_time){
+		v_setting_changed = 1;
+	       need_restart = 1;
+		v_menu_show_all_time_setting = v_menu_show_all_time;
+		if(v_menu_show_all_time == 0){ 
+			if(v_menu_display_format == V_MENU_DISPLAY_FORMAT_PULSE){
+				v_menu_display_format = V_MENU_DISPLAY_FORMAT_FLOW_L;
+				v_menu_notify_display_format_changed();
+			}    	        
+		}
+		v_menu_show_all_time_action();
+	}
+	if(v_menu_display_format != v_menu_latest_display_format){
+		v_setting_changed = 1;
+	    need_restart = 1;
+		v_menu_display_format_setting = v_menu_display_format;
+	}
+	if(v_sensor_work_mode != v_sensor_latest_work_mode){
+	    need_restart = 1;
+	}
+	if(v_sensor_error_delay_time != v_sensor_latest_error_delay_time){
+	    need_restart = 1;
+	}
+	if(v_sensor_instant_fuel_consum_1_alarm != v_sensor_latest_instant_fuel_consum_1_alarm){
+	}
+	if(v_sensor_instant_fuel_consum_2_alarm != v_sensor_latest_instant_fuel_consum_2_alarm){
+	}
+	if(v_sensor_fuel_consum_sample_time != v_sensor_latest_fuel_consum_sample_time){
+	    need_restart = 1;
+	}
+	if(v_sensor_flow_smaple_time != v_sensor_latest_flow_smaple_time){
+	    need_restart = 1;
+	}
+	if(v_menu_in_display){
+	   if(need_restart){
+		   v_menu_enter_display();
+	       v_menu_function();
+	   }
+	}
+	v_menu_backup_settings();
+}
+

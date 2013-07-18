@@ -11,6 +11,7 @@
 #include "sys.h"
 #include "led.h"
 #include "v_buzz.h"
+#include "v_menu_timer.h"
 
 #define V_KEY_NONE		    0x00
 
@@ -229,13 +230,17 @@ void v_key_scan(void)
  
 // 	GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE);
 }
+extern uint8_t v_menu_sleep_wakeup;
 void v_key_judge(void)
 {
 	if(V_KEY_NONE == v_key){
 		return;
 	}
 //	v_buzz_key(); 
-
+	if(v_menu_sleep && !v_menu_sleep_wakeup){
+		v_menu_sleep_wakeup_start();
+		v_menu_sleep_action();
+	}
 	switch(v_key){
 		case V_KEY_ENTER_SHORT:
 //			Show_Str(60,130,"V_KEY_ENTER_SHORT",16,0);

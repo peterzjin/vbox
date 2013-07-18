@@ -75,6 +75,11 @@ void v_menu_down_short(void);
 
 void v_menu_show(void);
 
+void v_menu_notify_display_format_changed(void);
+void v_menu_notify_show_all_time_changed(void);
+void v_menu_show_all_time_action(void);
+void v_menu_sleep_action(void);
+
 extern uint32_t v_menu_display_format_setting;
 extern uint32_t v_menu_show_all_time_setting;
 extern uint8_t v_setting_changed;

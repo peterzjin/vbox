@@ -20,6 +20,7 @@
 #include "v_key.h"
 #include "v_menu.h"
 #include "uart_timer.h"
+#include "v_buzz.h"
 #include "v_lcd.h"
 #include "v_menu_timer.h"
 
@@ -39,10 +40,11 @@
 	timo_timer_init();
 	v_menu_timer_init();
 	v_buzz_timer_init();
+	v_menu_sleep_timer_init();
 	v_menu_init();
     while(1)
 	{		
-      	v_key_scan();
+      	        v_key_scan();
 		v_key_judge();	
 		v_menu_show();
 	}

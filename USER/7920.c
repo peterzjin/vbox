@@ -516,7 +516,7 @@ void v_menu_show_str_inverse(uint8_t v_location, char *str){
 	} 	
 }
 */
-void v_open_lcd(uint8_t open)
+void v_lcd_backlight(uint8_t open)
 {
     if(open){
         LEDA = (bit)(0);
@@ -533,7 +533,7 @@ void v_lcd_init()
 //	delay_1ms(50);
 //	uchar command_data;
 	v_lcd_gpio_init();
-	v_open_lcd(1);
+//	v_lcd_backlight(1);
 	lcd_init();
 	delay_1ms(2);
 /*    while(1)

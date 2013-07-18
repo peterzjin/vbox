@@ -60,6 +60,7 @@ void v_menu_show_all_stop()
 	v_menu_timer_stop();
 	v_menu_show_all_time_setting = 0;
 	v_setting_changed = 1;
+	v_menu_notify_show_all_time_changed();
 }
 void TIM4_IRQHandler(void)
 {
@@ -132,5 +133,71 @@ void v_buzz_key(void)
 	v_buzz_timer_stop();
 	V_BUZZ = V_BUZZ_ON;
 	v_buzz_timer_start(1000); //200ms
+}
+
+// use TIM6 as timeout timer, 100us
+void v_menu_sleep_timer_init(void)
+{
+	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
+	NVIC_InitTypeDef NVIC_InitStructure;
+
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM6, ENABLE);
+
+	TIM_TimeBaseStructure.TIM_Period = 0xFFFF;
+	TIM_TimeBaseStructure.TIM_Prescaler =(7200-1);
+	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
+	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
+	TIM_TimeBaseInit(TIM6, &TIM_TimeBaseStructure);
+	TIM_ClearITPendingBit(TIM6, 0xFF);
+
+	/* Enable the TIM4 global Interrupt */
+	NVIC_InitStructure.NVIC_IRQChannel = TIM6_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 3;
+	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(&NVIC_InitStructure);
+}
+
+void v_menu_sleep_timer_start(uint16_t arr)
+{
+	TIM_SetCounter(TIM6, 0);
+	TIM_SetAutoreload(TIM6, arr);
+	TIM_ITConfig(TIM6, TIM_IT_Update | TIM_IT_Trigger, ENABLE);
+	TIM_Cmd(TIM6, ENABLE);
+}
+
+void v_menu_sleep_timer_stop(void)
+{
+	TIM_ITConfig(TIM6, TIM_IT_Update | TIM_IT_Trigger, DISABLE);
+	TIM_Cmd(TIM6, DISABLE);
+}
+static uint32_t v_menu_sleep_timer_tmp;
+extern uint8_t v_menu_sleep_wakeup;
+void v_menu_sleep_wakeup_start()
+{
+	v_menu_sleep_timer_tmp = 0;
+	v_menu_sleep_wakeup = 1;
+//	v_buzz_key(); 
+	v_menu_sleep_timer_start(10000);//1s cycle
+}
+void v_menu_sleep_wakeup_stop()
+{
+	v_menu_sleep_timer_tmp = 0;
+	v_buzz_key(); 
+	v_menu_sleep_timer_stop();
+	v_menu_sleep_wakeup = 0;
+	v_menu_sleep_action();
+}
+void TIM6_IRQHandler(void)
+{
+	if (TIM_GetITStatus(TIM6, TIM_IT_Update) != RESET)
+	{
+		TIM_ClearITPendingBit(TIM6, TIM_IT_Update);
+		if(v_menu_sleep_timer_tmp > 120){
+			v_menu_sleep_wakeup_stop();
+		}else{
+			v_menu_sleep_timer_tmp++;
+		}
+	}
 }
 

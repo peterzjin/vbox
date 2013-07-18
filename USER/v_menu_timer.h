@@ -13,6 +13,10 @@ void v_menu_show_all_start(void);
 void v_menu_show_all_stop(void);
 void v_menu_timer_stop(void);
 
+void v_menu_sleep_wakeup_start(void);
+void v_menu_sleep_wakeup_stop(void);
+
+
 #endif
 
 
