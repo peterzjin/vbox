@@ -13,9 +13,13 @@ void v_menu_show_all_start(void);
 void v_menu_show_all_stop(void);
 void v_menu_timer_stop(void);
 
-void v_menu_sleep_wakeup_start(void);
-void v_menu_sleep_wakeup_stop(void);
-
+void v_menu_sleep_timer_init(void);
+void v_menu_sleep_timer_start(void);
+void v_menu_sleep_timer_stop(void);
+void v_menu_sleep_wakeup_timer_start(void);
+void v_menu_sleep_wakeup_timer_stop(void);
+void v_menu_deep_sleep_timer_start(void);
+void v_menu_deep_sleep_timer_stop(void);
 
 #endif
 

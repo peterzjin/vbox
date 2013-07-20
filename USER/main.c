@@ -43,9 +43,10 @@
 	v_menu_sleep_timer_init();
 	v_menu_init();
     while(1)
-	{		
-      	        v_key_scan();
-		v_key_judge();	
+	{	
+	       v_key_scan();
+		v_key_judge();
+		v_check_setting();
 		v_menu_show();
 	}
  }

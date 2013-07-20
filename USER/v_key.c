@@ -86,9 +86,15 @@ void v_key_init(void)
 #define V_KEY_CHECK_9S			(9000/V_KEY_CHECK_INTERVAL)
 #define V_KEY_CHECK_15S			(15000/V_KEY_CHECK_INTERVAL)	
 
+extern uint8_t v_menu_sleep_wakeup_flag;
+extern uint8_t v_menu_deep_sleep_flag;
+extern v_setting_struct_t v_menu_setting;
 void v_key_scan(void)
 {	 
  	int i = 0;
+ 	if(v_menu_setting.v_menu_sleep && v_menu_deep_sleep_flag){
+	             return;
+	}
 	v_key = V_KEY_NONE;
 
 // 	GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable, ENABLE);
@@ -230,16 +236,21 @@ void v_key_scan(void)
  
 // 	GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE);
 }
-extern uint8_t v_menu_sleep_wakeup;
+
 void v_key_judge(void)
 {
 	if(V_KEY_NONE == v_key){
 		return;
 	}
 //	v_buzz_key(); 
-	if(v_menu_sleep && !v_menu_sleep_wakeup){
-		v_menu_sleep_wakeup_start();
-		v_menu_sleep_action();
+	if(v_menu_setting.v_menu_sleep){
+		if(!v_menu_sleep_wakeup_flag){
+		       v_menu_sleep_wakeup_flag = 1;
+		       v_menu_sleep_wakeup_action();
+		       v_menu_sleep_wakeup_timer_start();
+		       return;
+		}
+		v_menu_sleep_wakeup_timer_start();
 	}
 	switch(v_key){
 		case V_KEY_ENTER_SHORT:

@@ -239,7 +239,7 @@ static void parse_uart_data(void)
 			if (u_buf[0] > 1)
 				goto no_cmd;
 
-			v_menu_reset_tot_enable = u_buf[0];
+			v_setting.v_menu_reset_tot_enable = u_buf[0];
 
 			break;
 		case 0x0C:
@@ -276,7 +276,7 @@ static void parse_uart_data(void)
 		case 0x09:
 			if (u_buf[0] > 60)
 				goto no_cmd;
-			v_sensor_flow_smaple_time = u_buf[0];
+			v_setting.v_sensor_flow_smaple_time = u_buf[0];
 
 			if (u_data_len == 0x01)
 				is_cmd = 1;
@@ -284,7 +284,7 @@ static void parse_uart_data(void)
 		case 0x0E:
 			if (u_buf[0] > 1)
 				goto no_cmd;
-			v_menu_language = u_buf[0];
+			v_setting.v_menu_language = u_buf[0];
 
 			if (u_data_len == 0x01)
 				is_cmd = 1;
@@ -296,30 +296,30 @@ static void parse_uart_data(void)
 			if (u_buf[0] > 1)
 				goto no_cmd;
 
-			v_menu_display_format = u_buf[0];
+			v_setting.v_menu_display_format = u_buf[0];
 
 			if (u_data_len == 0x01)
 				is_cmd = 1;
 			break;
 		case 0x18:
-			v_sensor_error_delay_time = u_buf[0];
+			v_setting.v_sensor_error_delay_time = u_buf[0];
 			break;
 		case 0x19:
 			if (u_buf[0] > 60)
 				goto no_cmd;
-			v_sensor_fuel_consum_sample_time = u_buf[0];
+			v_setting.v_sensor_fuel_consum_sample_time = u_buf[0];
 			break;
 		case 0x1A:
-			v_sensor_instant_fuel_consum_1_alarm = u_buf[0];
+			v_setting.v_sensor_instant_fuel_consum_1_alarm = u_buf[0];
 			break;
 		case 0x1B:
-			v_sensor_instant_fuel_consum_2_alarm = u_buf[0];
+			v_setting.v_sensor_instant_fuel_consum_2_alarm = u_buf[0];
 			break;
 		case 0x20:
 			if (u_data_len == 0x02 && u_buf[0] == 'O' && u_buf[1] == 'K')
 				break;
 
-			v_menu_show_all_time = u_buf[0];
+			v_setting.v_menu_show_all_time = u_buf[0];
 
 			if (u_data_len == 0x01)
 				is_cmd = 1;
@@ -442,13 +442,13 @@ static void parse_uart_data(void)
 				| (u_buf[41] << 16) | (u_buf[42] << 24);
 			break;
 		case 0x40:
-			v_sensor_work_mode = u_buf[0];
+			v_setting.v_sensor_work_mode = u_buf[0];
 			break;
 		case 0xF0:
 			if (u_buf[0] > 1)
 				goto no_cmd;
 
-			v_menu_sleep = u_buf[0];
+			v_setting.v_menu_sleep = u_buf[0];
 			break;
 		default:
 			goto no_cmd;

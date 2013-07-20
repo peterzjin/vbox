@@ -447,8 +447,7 @@ void v_lcd_gpio_init(void)
  GPIO_InitStructure.GPIO_Mode = V_SCREEN_GPIO_GPIO_MODE; 
  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
  GPIO_Init(V_SCREEN_BL_GPIO, &GPIO_InitStructure);
-
- lcd_init();
+ LEDA = (bit)(1);
 }
 //v_location 0:line1    1:line2    0xFF:center
 void v_menu_show_str(uint8_t v_location, char *str){

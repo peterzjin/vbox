@@ -60,7 +60,8 @@ typedef struct v_menu_struct
 static v_menu_struct_t *v_cur_menu;
 
 uint8_t v_menu_show_all_flag = 0;
-uint8_t v_menu_sleep_wakeup;
+uint8_t v_menu_sleep_wakeup_flag;
+uint8_t v_menu_deep_sleep_flag;
 static uint32_t v_menu_show_all_time_origin;
 static uint8_t v_menu_in_display = 1;		//in diplay flag
 static uint32_t v_menu_show_last_value_0;
@@ -68,6 +69,7 @@ static uint32_t v_menu_show_last_value_1;
 static uint32_t v_menu_show_error_count_0;
 static uint32_t v_menu_show_error_count_1;
 
+#if 0
 static uint32_t v_menu_latest_sleep;
 static uint32_t v_menu_latest_language;
 static uint32_t v_menu_latest_show_all_time;
@@ -78,10 +80,15 @@ static uint32_t v_sensor_latest_instant_fuel_consum_1_alarm;
 static uint32_t v_sensor_latest_instant_fuel_consum_2_alarm;
 static uint32_t v_sensor_latest_fuel_consum_sample_time;
 static uint32_t v_sensor_latest_flow_smaple_time;
+#endif
 
 uint32_t v_menu_display_format_setting;
 uint32_t v_menu_show_all_time_setting;
 
+v_setting_struct_t v_setting;
+v_setting_struct_t v_menu_setting;
+
+#if 0
 //0: disable 1: enable
 uint32_t v_menu_sleep;                                     //0x0f
 uint32_t v_menu_deep_sleep;                          //?
@@ -99,12 +106,13 @@ uint32_t v_sensor_instant_fuel_consum_2_alarm; //0x1B
 
 uint32_t v_sensor_fuel_consum_sample_time;	//0x19
 uint32_t v_sensor_flow_smaple_time;			//0x09
-
+#endif
 uint32_t v_fuel_consum_1_correct;			 	//0x07|0x08	 noneed
 uint32_t v_fuel_consum_2_correct;
 //0:need correct  1: have corrected 
 uint32_t v_fuel_consum_1_corrected;
 uint32_t v_fuel_consum_2_corrected;
+
 
 //0x3C|0x3F|0x3D
 uint32_t v_data_real_time;
@@ -258,11 +266,10 @@ static void v_menu_function(void){
 
 uint8_t v_menu_changed;
 uint8_t v_setting_changed;
-static void v_menu_check_setting_changed(void);
+
 void v_menu_show(void){
 	if(v_cur_menu){
-	    v_menu_check_setting_changed();
-		if(v_menu_sleep && !v_menu_sleep_wakeup){
+		if(v_menu_setting.v_menu_sleep && !v_menu_sleep_wakeup_flag){
 			return;
 		}
 		if(v_menu_in_display){
@@ -294,7 +301,7 @@ static char *v_menu_lang_invalid_flow_L = "-----.---";
 static char *v_menu_lang_invalid_pulse = "--------";
 
 static void v_init_language_hint_string(void){
-	if(v_menu_language == V_MENU_LANGUAGE_EN){
+	if(v_menu_setting.v_menu_language == V_MENU_LANGUAGE_EN){
 		v_menu_lang_fuel = " Fuel";
 		v_menu_lang_fuel_trip = " Trip";
 		v_menu_lang_instant_fuel_consum = "   Fuel(L/H)";
@@ -303,7 +310,7 @@ static void v_init_language_hint_string(void){
 		v_menu_lang_flow = "_Flow";
 		v_menu_lang_error = "_Error_…";
 		v_menu_lang_abnormal = "Abnormal";
-	}else if(v_menu_language == V_MENU_LANGUAGE_CN){
+	}else if(v_menu_setting.v_menu_language == V_MENU_LANGUAGE_CN){
 		v_menu_lang_fuel = " 油耗";
 		v_menu_lang_fuel_trip = " 小计";
 		v_menu_lang_instant_fuel_consum = "  瞬时油耗(L/H)";
@@ -315,7 +322,7 @@ static void v_init_language_hint_string(void){
 	}
 }
 static char* get_invalid_str(){
-	if(v_menu_display_format == V_MENU_DISPLAY_FORMAT_PULSE){
+	if(v_menu_setting.v_menu_display_format == V_MENU_DISPLAY_FORMAT_PULSE){
 		return v_menu_lang_invalid_pulse;
 	}else{
 		return v_menu_lang_invalid_flow_L;
@@ -330,9 +337,9 @@ static char v_sprintf_buff[64];
 static uint32_t v_menu_show_check_value_error(uint8_t line,uint32_t value){
 	if(line == 0){
 		if(value >= V_MENU_SHOW_STATUS_INVALID){//error
-			if(v_menu_show_error_count_0 < v_sensor_error_delay_time){ 
+			if(v_menu_show_error_count_0 < v_menu_setting.v_sensor_error_delay_time){ 
 				value = v_menu_show_last_value_0;
-				if(v_sensor_error_delay_time != 0xFF){
+				if(v_menu_setting.v_sensor_error_delay_time != 0xFF){
 				v_menu_show_error_count_0++;
 				}  
 			}
@@ -343,9 +350,9 @@ static uint32_t v_menu_show_check_value_error(uint8_t line,uint32_t value){
 		}
 	}else{
 		if(value >= V_MENU_SHOW_STATUS_INVALID){//error
-			if(v_menu_show_error_count_1 < v_sensor_error_delay_time){ 
+			if(v_menu_show_error_count_1 < v_menu_setting.v_sensor_error_delay_time){ 
 				value = v_menu_show_last_value_1;
-				if(v_sensor_error_delay_time != 0xFF){
+				if(v_menu_setting.v_sensor_error_delay_time != 0xFF){
 				v_menu_show_error_count_1++;
 				}  
 			}		 
@@ -363,7 +370,7 @@ static void v_menu_show_wating(){
 }
 static void v_menu_show_time(uint8_t line, uint32_t time){
        v_menu_clear_inverse();
-	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
+	if(v_menu_setting.v_menu_language ==  V_MENU_LANGUAGE_EN){
 //		sprintf(v_sprintf_buff,"  %02dHH%02dMM%02dSS",
 //		time>>16&0xFF,time>>8&0xFF,time&0xFF);
 		sprintf(v_sprintf_buff,"  %1d%1dHH%1d%1dMM%1d%1dSS",
@@ -371,7 +378,7 @@ static void v_menu_show_time(uint8_t line, uint32_t time){
 		(time>>(8+4))&0x0F, (time>>8)&0x0F,
 		(time>>(4))&0x0F, (time)&0x0F);		
 
-	}else if(v_menu_language ==  V_MENU_LANGUAGE_CN){
+	}else if(v_menu_setting.v_menu_language ==  V_MENU_LANGUAGE_CN){
 		sprintf(v_sprintf_buff,"  %1d%1d时%1d%1d分%1d%1d秒",
 		//time>>16&0xFF,time>>8&0xFF,time&0xFF);
 		(time>>(16+4))&0x0F, (time>>(16))&0x0F, 
@@ -391,11 +398,11 @@ static void v_menu_show_value(uint8_t line, char *hint_pre, char *hint, uint32_t
 	}else if (value == V_MENU_SHOW_STATUS_INVALID){
 		sprintf(v_sprintf_buff,"%s%s:%s",hint_pre,hint,get_invalid_str());
 	}else{
-		if(v_menu_display_format ==  V_MENU_DISPLAY_FORMAT_FLOW_L){
+		if(v_menu_setting.v_menu_display_format ==  V_MENU_DISPLAY_FORMAT_FLOW_L){
 			double d_value = value/1000.0;
 			sprintf(v_sprintf_buff,"%s%s:%9.3f",hint_pre,hint,d_value);
 			
-		}else if(v_menu_display_format == V_MENU_DISPLAY_FORMAT_PULSE){
+		}else if(v_menu_setting.v_menu_display_format == V_MENU_DISPLAY_FORMAT_PULSE){
 			sprintf(v_sprintf_buff,"%s%s:%8d",hint_pre,hint,value);
 		}
 	}
@@ -423,9 +430,9 @@ static void v_menu_show_instant_fuel_consum(uint32_t value){
 //is_trip            0:trip 1:tot
 static float v_get_senosr_correct(uint8_t sensor_index){
        float correct_factor = 1.0;
-       if(v_menu_display_format == V_MENU_DISPLAY_FORMAT_PULSE) return correct_factor;
+       if(v_menu_setting.v_menu_display_format == V_MENU_DISPLAY_FORMAT_PULSE) return correct_factor;
 
-        switch(v_sensor_work_mode){
+        switch(v_menu_setting.v_sensor_work_mode){
             case 0x00:	//A-B
             case 0x01:	//A
             case 0x02:	//A+B-C-D
@@ -579,7 +586,7 @@ static uint32_t v_get_sensor_data(uint8_t sensor_index,uint8_t type){
 //is_trip              0:trip      1:tot   2:travel
 static float v_get_fuel_consum_correct(uint8_t equip_index){
        float correct_factor = 1.0;
-       if(v_menu_display_format == V_MENU_DISPLAY_FORMAT_PULSE) return correct_factor;
+       if(v_menu_setting.v_menu_display_format == V_MENU_DISPLAY_FORMAT_PULSE) return correct_factor;
 
         if(equip_index == 1){
             correct_factor = v_fuel_consum_1_corrected?1.0:(v_fuel_consum_1_correct/10000.0);
@@ -592,7 +599,7 @@ static uint32_t v_get_fuel_consum_data(uint8_t equip_index,uint8_t type){
        int32_t fuel_consum;
        float correct_factor = v_get_fuel_consum_correct(equip_index);
        if(equip_index == 1){
-        	switch(v_sensor_work_mode){
+        	switch(v_menu_setting.v_sensor_work_mode){
         		case 0x00:	//A-B
         		case 0x05:  //A-B and C-D
         		case 0x06:	//A-B and C
@@ -824,7 +831,7 @@ static uint32_t v_get_fuel_consum_data(uint8_t equip_index,uint8_t type){
         			return V_MENU_SHOW_STATUS_INVALID;
         	}
 	}else{
-		switch(v_sensor_work_mode){
+		switch(v_menu_setting.v_sensor_work_mode){
         		case 0x05:	//A-B and C-D
         		{
         			if(v_sensor_C_status == V_MENU_SENSOR_STATUS_NORMAL 
@@ -909,8 +916,8 @@ static uint32_t get_fuel_instant_consum_data(uint8_t equip_index){
         	       instant_consum = (v_fuel_consum_1_travel_consum - v_fuel_consum_1_latest_travel_consum)/time_interval*3600;
         		v_fuel_consum_1_latest_travel_consum = v_fuel_consum_1_travel_consum;
         		v_data_latest_real_time= v_data_real_time;
-        		if(v_sensor_instant_fuel_consum_1_alarm 
-        		    && instant_consum>v_sensor_instant_fuel_consum_1_alarm){
+        		if(v_menu_setting.v_sensor_instant_fuel_consum_1_alarm 
+        		    && instant_consum>v_menu_setting.v_sensor_instant_fuel_consum_1_alarm){
                             v_buzz_alarm_2s();
                       }
         		return instant_consum<0?0 : instant_consum;	
@@ -926,8 +933,8 @@ static uint32_t get_fuel_instant_consum_data(uint8_t equip_index){
         		instant_consum = (v_fuel_consum_2_travel_consum - v_fuel_consum_2_latest_travel_consum)/time_interval*3600;
         		v_fuel_consum_2_latest_travel_consum = v_fuel_consum_2_travel_consum;
         		v_data_latest_real_time= v_data_real_time;
-        		if(v_sensor_instant_fuel_consum_1_alarm 
-        		    && instant_consum>v_sensor_instant_fuel_consum_2_alarm){
+        		if(v_menu_setting.v_sensor_instant_fuel_consum_1_alarm 
+        		    && instant_consum>v_menu_setting.v_sensor_instant_fuel_consum_2_alarm){
                             v_buzz_alarm_2s();
                       }
         		return instant_consum<0?0 : instant_consum;	
@@ -1002,10 +1009,10 @@ static void v_menu_show_sensor_C_D_flow(void){
 
 /*display function for menu setting*/
 static void v_menu_setting_select_display_format(void){
-	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
+	if(v_menu_setting.v_menu_language ==  V_MENU_LANGUAGE_EN){
 		v_menu_show_str(0,"Pick L/Pulse");
 		v_menu_show_str(1,"     Open All");
-	}else if(v_menu_language ==  V_MENU_LANGUAGE_CN){
+	}else if(v_menu_setting.v_menu_language ==  V_MENU_LANGUAGE_CN){
 		v_menu_show_str(0,"选择  公升/ 脉冲");
 		v_menu_show_str(1,"      开启全显");
 	}
@@ -1013,10 +1020,10 @@ static void v_menu_setting_select_display_format(void){
 	v_menu_show_inverse(0);
 }
 static void v_menu_setting_select_show_all(void){
-	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
+	if(v_menu_setting.v_menu_language ==  V_MENU_LANGUAGE_EN){
 		v_menu_show_str(0,"     L/Pulse");
 		v_menu_show_str(1,"Pick Open All");
-	}else if(v_menu_language ==  V_MENU_LANGUAGE_CN){
+	}else if(v_menu_setting.v_menu_language ==  V_MENU_LANGUAGE_CN){
 		v_menu_show_str(0,"      公升/ 脉冲");
 		v_menu_show_str(1,"选择  开启全显");
 	}
@@ -1024,10 +1031,10 @@ static void v_menu_setting_select_show_all(void){
 	v_menu_show_inverse(1);
 }
 static void v_menu_setting_select_reboot(void){
-	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
+	if(v_menu_setting.v_menu_language ==  V_MENU_LANGUAGE_EN){
 		v_menu_show_str(0,"     Open All");
 		v_menu_show_str(1,"Pick Reboot");
-	}else if(v_menu_language ==  V_MENU_LANGUAGE_CN){
+	}else if(v_menu_setting.v_menu_language ==  V_MENU_LANGUAGE_CN){
 		v_menu_show_str(0,"      开启全显");
 		v_menu_show_str(1,"选择  重新启动");
 	}
@@ -1035,10 +1042,10 @@ static void v_menu_setting_select_reboot(void){
 	v_menu_show_inverse(1);
 }
 static void v_menu_setting_select_reboot_hint(void){
-	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
+	if(v_menu_setting.v_menu_language ==  V_MENU_LANGUAGE_EN){
 		v_menu_show_str(0,"Sure to reboot?");
 		v_menu_show_str(1,"                   yes");
-	}else if(v_menu_language ==  V_MENU_LANGUAGE_CN){
+	}else if(v_menu_setting.v_menu_language ==  V_MENU_LANGUAGE_CN){
 		v_menu_show_str(0,"确定重启设备?");
 		v_menu_show_str(1,"              是");
 	}
@@ -1047,20 +1054,20 @@ static void v_menu_setting_select_reboot_hint(void){
 }
 static void v_menu_setting_display_format_flow_L(void){
        if(v_menu_display_format_setting == V_MENU_DISPLAY_FORMAT_FLOW_L){
-        	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
+        	if(v_menu_setting.v_menu_language ==  V_MENU_LANGUAGE_EN){
         		v_menu_show_str(0,"    DisplayPulse");
         		v_menu_show_str(1,"Set Display L");
-        	}else if(v_menu_language ==  V_MENU_LANGUAGE_CN){
+        	}else if(v_menu_setting.v_menu_language ==  V_MENU_LANGUAGE_CN){
         		v_menu_show_str(0,"      显示脉冲");
         		v_menu_show_str(1,"设定  显示公升");
         	}
         	v_menu_clear_inverse();
         	v_menu_show_inverse(1);
 	}else{
-	        if(v_menu_language ==  V_MENU_LANGUAGE_EN){
+	        if(v_menu_setting.v_menu_language ==  V_MENU_LANGUAGE_EN){
         		v_menu_show_str(0,"Set DisplayPulse");
         		v_menu_show_str(1,"    Display L");
-        	}else if(v_menu_language ==  V_MENU_LANGUAGE_CN){
+        	}else if(v_menu_setting.v_menu_language ==  V_MENU_LANGUAGE_CN){
         		v_menu_show_str(0,"设定  显示脉冲");
         		v_menu_show_str(1,"      显示公升");
         	}
@@ -1081,20 +1088,20 @@ static void v_menu_setting_display_format_pulse(void){
 */
 static void v_menu_setting_show_all_set(void){
        if(v_menu_show_all_time_setting){
-        	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
+        	if(v_menu_setting.v_menu_language ==  V_MENU_LANGUAGE_EN){
         		v_menu_show_str(0,"Set Open ALL");
         		v_menu_show_str(1,"    Close All");
-        	}else if(v_menu_language ==  V_MENU_LANGUAGE_CN){
+        	}else if(v_menu_setting.v_menu_language ==  V_MENU_LANGUAGE_CN){
         		v_menu_show_str(0,"设定  开启全显");
         		v_menu_show_str(1,"      关闭全显");
         	}
         	 v_menu_clear_inverse();
         	v_menu_show_inverse(0);
         }else{
-              if(v_menu_language ==  V_MENU_LANGUAGE_EN){
+              if(v_menu_setting.v_menu_language ==  V_MENU_LANGUAGE_EN){
         		v_menu_show_str(0,"    Open ALL");
         		v_menu_show_str(1,"Set Close All");
-        	}else if(v_menu_language ==  V_MENU_LANGUAGE_CN){
+        	}else if(v_menu_setting.v_menu_language ==  V_MENU_LANGUAGE_CN){
         		v_menu_show_str(0,"      开启全显");
         		v_menu_show_str(1,"设定  关闭全显");
         	}
@@ -1114,10 +1121,10 @@ static void v_menu_setting_show_all_close(void){
 }
 */
 static void v_menu_show_save_history_data(void){
-	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
+	if(v_menu_setting.v_menu_language ==  V_MENU_LANGUAGE_EN){
 		v_menu_show_str(0,"Start Data copy?");
 		v_menu_show_str(1,"                   yes");
-	}else if(v_menu_language ==  V_MENU_LANGUAGE_CN){
+	}else if(v_menu_setting.v_menu_language ==  V_MENU_LANGUAGE_CN){
 		v_menu_show_str(0,"开始历史数据复制?");
 		v_menu_show_str(1,"              是");
 	}
@@ -1125,10 +1132,10 @@ static void v_menu_show_save_history_data(void){
 	v_menu_show_inverse(1);
 }
 static void v_menu_show_saving_history_data(void){
-	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
+	if(v_menu_setting.v_menu_language ==  V_MENU_LANGUAGE_EN){
 		v_menu_show_str(0," Data copying...");
 		v_menu_show_str(1,"");
-	}else if(v_menu_language ==  V_MENU_LANGUAGE_CN){
+	}else if(v_menu_setting.v_menu_language ==  V_MENU_LANGUAGE_CN){
 		v_menu_show_str(0,"历史数据  复制中...");
 		v_menu_show_str(1,"");
 	}
@@ -1136,10 +1143,10 @@ static void v_menu_show_saving_history_data(void){
 }
 
 static void v_menu_show_save_history_data_succeed(void){
-	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
+	if(v_menu_setting.v_menu_language ==  V_MENU_LANGUAGE_EN){
 		v_menu_show_str(0," Save succeed!");
 		v_menu_show_str(1,"");
-	}else if(v_menu_language ==  V_MENU_LANGUAGE_CN){
+	}else if(v_menu_setting.v_menu_language ==  V_MENU_LANGUAGE_CN){
 		v_menu_show_str(0,"历史数据复制成功!");
 		v_menu_show_str(1,"");
 	}
@@ -1147,10 +1154,10 @@ static void v_menu_show_save_history_data_succeed(void){
 }
 
 static void v_menu_show_save_history_data_failed(void){
-	if(v_menu_language ==  V_MENU_LANGUAGE_EN){
+	if(v_menu_setting.v_menu_language ==  V_MENU_LANGUAGE_EN){
 		v_menu_show_str(0,"  Save failed!");
 		v_menu_show_str(1,"");
-	}else if(v_menu_language ==  V_MENU_LANGUAGE_CN){
+	}else if(v_menu_setting.v_menu_language ==  V_MENU_LANGUAGE_CN){
 		v_menu_show_str(0,"历史数据复制失败!");
 		v_menu_show_str(1,"");
 	}
@@ -1171,7 +1178,7 @@ static void v_menu_start_sensor_data_loop_pulse(uint16_t arr){
 }
 static void v_menu_start_sensor_data_loop(uint16_t arr){
 #ifndef DEBUG
-	if(v_menu_display_format == V_MENU_DISPLAY_FORMAT_FLOW_L){
+	if(v_menu_setting.v_menu_display_format == V_MENU_DISPLAY_FORMAT_FLOW_L){
 		v_menu_start_sensor_data_loop_flow_l(arr);
 	}else{
 		v_menu_start_sensor_data_loop_pulse(arr);
@@ -1198,7 +1205,7 @@ static void v_do_function_sensor_fuel_consum_1_travel_consum(void){
 }
 static void v_do_function_sensor_fuel_consum_1_instant_consum(void){
 	v_menu_show_wating();
-	v_menu_sart_equip_data_loop(v_sensor_fuel_consum_sample_time*10000);
+	v_menu_sart_equip_data_loop(v_menu_setting.v_sensor_fuel_consum_sample_time*10000);
 }
 static void v_do_function_sensor_fuel_consum_2_Trip_Tot(void){
 	v_menu_show_wating();
@@ -1210,7 +1217,7 @@ static void v_do_function_sensor_fuel_consum_2_travel_consum(void){
 }
 static void v_do_function_sensor_fuel_consum_2_instant_consum(void){
 	v_menu_show_wating();
-	v_menu_sart_equip_data_loop(v_sensor_fuel_consum_sample_time*10000);
+	v_menu_sart_equip_data_loop(v_menu_setting.v_sensor_fuel_consum_sample_time*10000);
 }
 static void v_do_function_sensor_A_Trip_Tot(void){
 	v_menu_show_wating();
@@ -1246,11 +1253,11 @@ static void v_do_function_sensor_C_D_Tot(void){
 }
 static void v_do_function_sensor_A_B_flow(void){
 	v_menu_show_wating();
-	v_menu_start_sensor_data_loop_flow_l(v_sensor_flow_smaple_time*10000);
+	v_menu_start_sensor_data_loop_flow_l(v_menu_setting.v_sensor_flow_smaple_time*10000);
 }
 static void v_do_function_sensor_C_D_flow(void){
 	v_menu_show_wating();
-	v_menu_start_sensor_data_loop_flow_l(v_sensor_flow_smaple_time*10000);
+	v_menu_start_sensor_data_loop_flow_l(v_menu_setting.v_sensor_flow_smaple_time*10000);
 }
 
 /*do function for menu setting*/
@@ -1280,7 +1287,7 @@ static void v_do_function_setting_select_reboot_enter(void){
 }
 static void v_do_function_setting_display_format_flow_L(void){
        v_setting_changed = 1;
-       v_menu_display_format_setting= v_menu_display_format;
+       v_menu_display_format_setting= v_menu_setting.v_menu_display_format;
 	//v_menu_show_wating();
 }
 /*
@@ -1290,7 +1297,7 @@ static void v_do_function_setting_display_format_pulse(void){
 */
 static void v_do_function_setting_show_all_set(void){
        v_setting_changed = 1;
-       v_menu_show_all_time_setting = v_menu_show_all_time;
+       v_menu_show_all_time_setting = v_menu_setting.v_menu_show_all_time;
 	//v_menu_show_wating();
 }
 /*
@@ -1375,7 +1382,7 @@ static v_init_menu_struct(v_menu_struct_t *source_struct,
 }
 
 static void v_init_menu_show_struct_3_flow_L_table(void){
-    if(v_sensor_work_mode>0x04 && v_sensor_work_mode<0x08){
+    if(v_menu_setting.v_sensor_work_mode>0x04 && v_menu_setting.v_sensor_work_mode<0x08){
         v_init_menu_struct(
 		&v_struct_show_sensor_fuel_consum_1_Trip_Tot,
 		0,0,
@@ -1839,7 +1846,7 @@ static void v_menu_enter_reset_all(void){
 	delay_ms(50);
 	v_menu_send_and_wait_messge(GET_RESET_ENABLE);
 	delay_ms(50);
-	if(v_menu_reset_tot_enable){
+	if(v_menu_setting.v_menu_reset_tot_enable){
 	    send_cmd(TOTAL_RESET,NULL,NULL);
 	}
 	v_menu_function();
@@ -1870,12 +1877,12 @@ static void v_do_function_save_history_data_failed(void){
 }
 
 static void v_init_menu_display_struct_table(void){
-	if(!v_menu_show_all_time){
-		v_menu_display_format = V_MENU_DISPLAY_FORMAT_FLOW_L;
+	if(!v_menu_setting.v_menu_show_all_time){
+		v_menu_setting.v_menu_display_format = V_MENU_DISPLAY_FORMAT_FLOW_L;
 		v_init_menu_show_struct_all_flow_L_table();
 		v_init_menu_show_struct_3_flow_L_table();
 	}else{
-		if(v_menu_display_format == V_MENU_DISPLAY_FORMAT_FLOW_L){
+		if(v_menu_setting.v_menu_display_format == V_MENU_DISPLAY_FORMAT_FLOW_L){
 			v_init_menu_show_struct_all_flow_L_table();
 		}else{
 			v_init_menu_show_struct_all_pulse_table();
@@ -1920,60 +1927,55 @@ static void v_init_menu_struct_save_history_data_table(void){
 	);
 }
 void v_menu_notify_display_format_changed(void){
-	uint8_t tmp = v_menu_display_format;
+	uint8_t tmp = v_menu_setting.v_menu_display_format;
 	send_cmd(DISPLAY_FORMAT,&tmp,1);
 }
 void v_menu_notify_show_all_time_changed(void){
-	uint8_t tmp = v_menu_show_all_time;
+	uint8_t tmp = v_menu_setting.v_menu_show_all_time;
 	send_cmd(DISPLAY_FORMAT,&tmp,1);
 }
 void v_menu_show_all_time_action(void){
-	if(v_menu_show_all_time == 0){ 
-        v_menu_timer_stop();    	        
+	if(v_menu_setting.v_menu_show_all_time == 0){ 
+              v_menu_timer_stop();    	        
 	}else{
 		v_menu_show_all_start();
 	}
 }
+void v_menu_sleep_wakeup_action(void){
+       if(v_menu_sleep_wakeup_flag){
+            v_lcd_backlight(1);
+            v_menu_enter_display();
+	     v_menu_function();
+       }else{
+             v_lcd_backlight(0);
+       }
+}
 void v_menu_sleep_action(void){
-	if(v_menu_sleep&&!v_menu_sleep_wakeup){
+	if(v_menu_setting.v_menu_sleep){
 		v_lcd_backlight(0);
-		stop_cmd_loop();
-		v_menu_timer_stop();
-		v_menu_sleep_wakeup = 0;
+              v_menu_sleep_timer_start();
 	}else{
-	        v_lcd_backlight(1);
-		v_menu_enter_display();
-		v_menu_function();
+	       v_lcd_backlight(1);
+	       v_menu_sleep_timer_stop();
 	}
 }
-static void v_menu_backup_settings(void){
-	v_menu_latest_sleep = v_menu_sleep;
-	v_menu_latest_language = v_menu_language;
-	v_menu_latest_show_all_time = v_menu_show_all_time;
-	v_menu_latest_display_format = v_menu_display_format;
-	v_sensor_latest_work_mode = v_sensor_work_mode;
-	v_sensor_latest_error_delay_time = v_sensor_error_delay_time;
-	v_sensor_latest_instant_fuel_consum_1_alarm = v_sensor_instant_fuel_consum_1_alarm;
-	v_sensor_latest_instant_fuel_consum_2_alarm = v_sensor_instant_fuel_consum_2_alarm;
-	v_sensor_latest_fuel_consum_sample_time = v_sensor_fuel_consum_sample_time;
-	v_sensor_latest_flow_smaple_time = v_sensor_flow_smaple_time;
-}
+
 static int v_menu_init_settings(void){
 #ifdef DEBUG
-	v_menu_language = V_MENU_LANGUAGE_CN;
-	v_menu_display_format = V_MENU_DISPLAY_FORMAT_PULSE;//V_MENU_DISPLAY_FORMAT_FLOW_L;
-	v_menu_show_all_time = 1;
-	v_menu_sleep = 1;
+	v_setting.v_menu_language = V_MENU_LANGUAGE_CN;
+	v_setting.v_menu_display_format = V_MENU_DISPLAY_FORMAT_PULSE;//V_MENU_DISPLAY_FORMAT_FLOW_L;
+	v_setting.v_menu_show_all_time = 1;
+	v_setting.v_menu_sleep = 0;
 
-	v_sensor_work_mode = 0x05;
-	v_sensor_error_delay_time = 15;
+	v_setting.v_sensor_work_mode = 0x05;
+	v_setting.v_sensor_error_delay_time = 15;
 	
-	v_sensor_instant_fuel_consum_1_alarm = 5;
-	v_sensor_instant_fuel_consum_2_alarm = 5;
+	v_setting.v_sensor_instant_fuel_consum_1_alarm = 5;
+	v_setting.v_sensor_instant_fuel_consum_2_alarm = 5;
 	
-	v_sensor_fuel_consum_sample_time = 1;
-	v_sensor_flow_smaple_time = 3;
-	
+	v_setting.v_sensor_fuel_consum_sample_time = 1;
+	v_setting.v_sensor_flow_smaple_time = 3;
+
 #else
        if(v_menu_send_and_wait_messge(MENU_LANGUAGE))   return -1;
 	if(v_menu_send_and_wait_messge(DISPLAY_FORMAT))  return -2;
@@ -1988,6 +1990,7 @@ static int v_menu_init_settings(void){
 //	if(v_menu_send_and_wait_messge(REQUEST_SLEEP)) return -11;
 //  if(v_menu_send_and_wait_messge(FC1_CORRECTION)) return -11;
 //  if(v_menu_send_and_wait_messge(FC2_CORRECTION)) return -12;
+     v_setting.v_menu_sleep = 0;
 #endif
 	return 0;	
 }
@@ -2000,21 +2003,16 @@ void v_menu_init(void){
 //		v_menu_show_str(1,"");
 		while(1);
 	}
-	v_menu_sleep = 0;
+	
 //	v_menu_show_str(0," Init succeed!");	
-       v_menu_backup_settings();
+       v_menu_setting = v_setting;
 	v_init_language_hint_string();
 //	v_cur_menu = &v_struct_setting_select_display_format;
 
 	v_init_menu_display_struct_table();
 	v_init_menu_setting_struct_table();
 	v_init_menu_struct_save_history_data_table();
-	if(v_menu_sleep){
-		v_lcd_backlight(0);
-		v_menu_sleep_wakeup = 0;
-		return;
-	}
-	v_lcd_backlight(1);
+	v_menu_sleep_action();
 	v_menu_enter_display();
 	v_menu_function();
 	v_menu_show_all_time_action();
@@ -2024,13 +2022,13 @@ void v_menu_enter_short(void){
        if(!v_menu_in_display){
              v_setting_changed = 1;
              if(&v_struct_setting_display_format_flow_L == v_cur_menu){
-                v_menu_display_format = v_menu_latest_display_format = v_menu_display_format_setting;
-				v_menu_notify_display_format_changed();
+                v_setting.v_menu_display_format = v_menu_display_format_setting;
+		  		v_menu_notify_display_format_changed();
                 return;
              }else if (&v_struct_setting_show_all_set == v_cur_menu){
-                v_menu_show_all_time = v_menu_latest_show_all_time = v_menu_show_all_time_setting;
-				v_menu_notify_show_all_time_changed();
-				v_menu_show_all_time_action();
+                v_setting.v_menu_show_all_time  = v_menu_show_all_time_setting;
+		 		v_menu_notify_show_all_time_changed();
+		 //		v_menu_show_all_time_action();
                 return;
              }
        }
@@ -2089,7 +2087,7 @@ void v_menu_up_short(void){
        if(!v_menu_in_display){
              v_setting_changed = 1;
              if(&v_struct_setting_display_format_flow_L == v_cur_menu){
-                if(v_menu_show_all_time ==0){
+                if(v_menu_setting.v_menu_show_all_time ==0){
                     v_menu_display_format_setting = V_MENU_DISPLAY_FORMAT_FLOW_L;
                     return;
                 }
@@ -2122,79 +2120,71 @@ void v_menu_down_short(void){
 		v_menu_function();
 	}
 }
-/*
-void v_menu_show_all_timer_stop(){
-	if(v_menu_in_display){
-		v_menu_enter_display();
-		v_menu_function();
-	}
-}
-*/
-/*
-static void v_menu_check_setting_changed(){
-    if(v_menu_in_display){
-          if(v_menu_latest_display_format != v_menu_display_format
-          ||v_menu_latest_show_all_time != v_menu_show_all_time){
-            	    v_menu_enter_display();
-            	    v_menu_function();
-            	         v_menu_latest_display_format = v_menu_display_format;
-                       v_menu_latest_show_all_time = v_menu_show_all_time;
-                       if(v_menu_show_all_time){
-                	        v_menu_show_all_start();
-                   }
-          }
-     }
-}
-*/
 
-static void v_menu_check_setting_changed(void){
+void v_check_setting(void){
 	int need_restart = 0;
-	if(v_menu_sleep != v_menu_latest_sleep){
+	v_setting_struct_t v_setting_tmp = v_setting;
+	if(v_setting_tmp.v_menu_sleep != v_menu_setting.v_menu_sleep){
+	       v_menu_setting.v_menu_sleep = v_setting_tmp.v_menu_sleep;
  		v_menu_sleep_action();
+ 		if(v_setting_tmp.v_menu_sleep == 0 && v_menu_setting.v_menu_show_all_time!=0){
+ 		    v_menu_show_all_resume(0);
+ 		}
+ 		
 		need_restart = 1;
 	}
-	if(v_menu_language!=v_menu_latest_language){
+	if(v_setting_tmp.v_menu_language!=v_menu_setting.v_menu_language){
+	       v_menu_setting.v_menu_language = v_setting_tmp.v_menu_language;
 		v_setting_changed = 1;
 	}
-	if(v_menu_show_all_time != v_menu_latest_show_all_time){
-		v_setting_changed = 1;
-	       need_restart = 1;
-		v_menu_show_all_time_setting = v_menu_show_all_time;
-		if(v_menu_show_all_time == 0){ 
-			if(v_menu_display_format == V_MENU_DISPLAY_FORMAT_PULSE){
-				v_menu_display_format = V_MENU_DISPLAY_FORMAT_FLOW_L;
-				v_menu_notify_display_format_changed();
-			}    	        
-		}
+	if(v_setting_tmp.v_menu_show_all_time != v_menu_setting.v_menu_show_all_time){
+	       v_menu_setting.v_menu_show_all_time = v_setting_tmp.v_menu_show_all_time;
+		v_menu_show_all_time_setting = v_setting_tmp.v_menu_show_all_time;
 		v_menu_show_all_time_action();
-	}
-	if(v_menu_display_format != v_menu_latest_display_format){
 		v_setting_changed = 1;
+		need_restart = 1;
+	}
+	if(v_setting_tmp.v_menu_display_format != v_menu_setting.v_menu_display_format){
+	       v_menu_setting.v_menu_display_format = v_setting_tmp.v_menu_display_format;
+		v_menu_display_format_setting = v_setting_tmp.v_menu_display_format;
+		v_setting_changed = 1;
+		need_restart = 1;
+	}
+	if(v_setting_tmp.v_menu_show_all_time == 0 && v_setting_tmp.v_menu_display_format == V_MENU_DISPLAY_FORMAT_PULSE){ 
+    	    v_menu_setting.v_menu_display_format = v_setting.v_menu_display_format = v_setting_tmp.v_menu_display_format 
+    	    = v_menu_display_format_setting = V_MENU_DISPLAY_FORMAT_FLOW_L;
+    	    v_menu_notify_display_format_changed();  
+    	    v_setting_changed = 1;
+    	    need_restart = 1;
+    	}
+	if(v_setting_tmp.v_sensor_work_mode != v_menu_setting.v_sensor_work_mode){
+	    v_menu_setting.v_sensor_work_mode = v_setting_tmp.v_sensor_work_mode;
 	    need_restart = 1;
-		v_menu_display_format_setting = v_menu_display_format;
 	}
-	if(v_sensor_work_mode != v_sensor_latest_work_mode){
+	if(v_setting_tmp.v_sensor_error_delay_time != v_menu_setting.v_sensor_error_delay_time){
+	    v_menu_setting.v_sensor_error_delay_time = v_setting_tmp.v_sensor_error_delay_time;
 	    need_restart = 1;
 	}
-	if(v_sensor_error_delay_time != v_sensor_latest_error_delay_time){
+	if(v_setting_tmp.v_sensor_instant_fuel_consum_1_alarm !=v_menu_setting.v_sensor_instant_fuel_consum_1_alarm){
+	    v_menu_setting.v_sensor_instant_fuel_consum_1_alarm = v_setting_tmp.v_sensor_instant_fuel_consum_1_alarm;
+	}
+	if(v_setting_tmp.v_sensor_instant_fuel_consum_2_alarm != v_menu_setting.v_sensor_instant_fuel_consum_2_alarm){
+	    v_menu_setting.v_sensor_instant_fuel_consum_1_alarm = v_setting_tmp.v_sensor_instant_fuel_consum_1_alarm;
+	}
+	if(v_setting_tmp.v_sensor_fuel_consum_sample_time !=v_menu_setting.v_sensor_fuel_consum_sample_time){
+	    v_menu_setting.v_sensor_fuel_consum_sample_time = v_setting_tmp.v_sensor_fuel_consum_sample_time;
 	    need_restart = 1;
 	}
-	if(v_sensor_instant_fuel_consum_1_alarm != v_sensor_latest_instant_fuel_consum_1_alarm){
-	}
-	if(v_sensor_instant_fuel_consum_2_alarm != v_sensor_latest_instant_fuel_consum_2_alarm){
-	}
-	if(v_sensor_fuel_consum_sample_time != v_sensor_latest_fuel_consum_sample_time){
+	if(v_setting_tmp.v_sensor_flow_smaple_time != v_menu_setting.v_sensor_flow_smaple_time){
+	    v_menu_setting.v_sensor_flow_smaple_time = v_setting_tmp.v_sensor_flow_smaple_time;
 	    need_restart = 1;
 	}
-	if(v_sensor_flow_smaple_time != v_sensor_latest_flow_smaple_time){
-	    need_restart = 1;
-	}
+	
 	if(v_menu_in_display){
 	   if(need_restart){
-		   v_menu_enter_display();
+		v_menu_enter_display();
 	       v_menu_function();
 	   }
 	}
-	v_menu_backup_settings();
 }
 
