@@ -9,6 +9,8 @@
 #include "stm32f10x.h"
 
 #define V_MENU_DATA_LOOP_TIME	20000          //1s
+#define V_MENU_DISPLAY_FORMAT_FLOW_L      	0x00
+#define V_MENU_DISPLAY_FORMAT_PULSE		0x01
 typedef struct v_setting_struct
 { 
 	 //0: disable 1: enable
@@ -98,8 +100,8 @@ void v_menu_down_short(void);
 
 void v_menu_show(void);
 
-void v_menu_notify_display_format_changed(void);
-void v_menu_notify_show_all_time_changed(void);
+void v_menu_notify_display_format_changed(uint32_t display_format);
+void v_menu_notify_show_all_time_changed(uint32_t show_all_time);
 void v_menu_show_all_time_action(void);
 void v_menu_sleep_wakeup_action(void);
 

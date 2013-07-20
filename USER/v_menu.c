@@ -20,8 +20,6 @@
 #define V_MENU_LANGUAGE_EN		0x01
 #define V_MENU_LANGUAGE_CN		0x00
 
-#define V_MENU_DISPLAY_FORMAT_FLOW_L      	0x00
-#define V_MENU_DISPLAY_FORMAT_PULSE		0x01
 #ifdef DEBUG
 #define V_MENU_SETTING_LOCAL_SHOW_ALL_TIME 1
 #else
@@ -1829,31 +1827,26 @@ static void v_menu_enter_save_history_data_failed(void){
 }
 
 static void v_menu_enter_reset_all_trip(void){
-//	send_cmd(ENABLE_DISABLE_RESET,NULL,NULL);
-//	delay_ms(10);
-	send_cmd(TRIP_RESET,NULL,NULL);
+	send_cmd(TRIP_RESET,NULL,0);
        v_menu_function();
 }
 static uint8_t v_menu_send_and_wait_messge(uint8_t cmd_index){
 	int i=0;
 	for(i=0;i<3;i++){
 		delay_ms(50);
-		send_cmd(cmd_index, NULL, NULL);
+		send_cmd(cmd_index, NULL, 0);
 		if(!wait_for_cmd(cmd_index)) return 0;
 	}
 	return 1;
 }
 static void v_menu_enter_reset_all(void){
-#if 0
-	send_cmd(ENABLE_DISABLE_RESET,NULL,NULL);
-	delay_ms(50);
+	//send_cmd(ENABLE_DISABLE_RESET,NULL,0);
+	//delay_ms(50);
 	v_menu_send_and_wait_messge(GET_RESET_ENABLE);
 	delay_ms(50);
 	if(v_menu_setting.v_menu_reset_tot_enable){
-	    send_cmd(TOTAL_RESET,NULL,NULL);
+	    send_cmd(TOTAL_RESET,NULL,0);
 	}
-#endif
-	send_cmd(TOTAL_RESET,NULL,NULL);
 	v_menu_function();
 }
 //do function for sd card
@@ -1931,12 +1924,39 @@ static void v_init_menu_struct_save_history_data_table(void){
 		v_menu_show_save_history_data_failed
 	);
 }
-void v_menu_notify_display_format_changed(void){
-	uint8_t tmp = v_menu_setting.v_menu_display_format;
+//show parameter error
+static v_menu_struct_t v_struct_param_error;
+static void v_menu_show_param_error(void){
+	if(v_menu_setting.v_menu_language ==  V_MENU_LANGUAGE_EN){
+		v_menu_show_str(0,"Parameters error!");
+		v_menu_show_str(1,"");
+	}else if(v_menu_setting.v_menu_language ==  V_MENU_LANGUAGE_CN){
+		v_menu_show_str(0,"    ²ÎÊý´íÎó!");
+		v_menu_show_str(1,"");
+	}
+	v_menu_clear_inverse();
+}
+static void v_do_function_param_error(void){
+        v_setting_changed = 1;
+}
+static void v_init_menu_struct_param_error_table(void){
+    v_init_menu_struct(
+		&v_struct_param_error,
+		0,
+		&v_struct_show_sensor_fuel_consum_1_Trip_Tot,
+		0,
+		0,
+		v_do_function_param_error,
+		v_menu_show_param_error
+	);
+}
+
+void v_menu_notify_display_format_changed(uint32_t display_format){
+       uint8_t tmp = display_format;
 	send_cmd(SET_DISPLAY_FORMAT,&tmp,1);
 }
-void v_menu_notify_show_all_time_changed(void){
-	uint8_t tmp = v_menu_setting.v_menu_show_all_time;
+void v_menu_notify_show_all_time_changed(uint32_t show_all_time){
+       uint8_t tmp = show_all_time;
 	send_cmd(SET_DISPLAY_DELAY_TIME,&tmp,1);
 }
 void v_menu_show_all_time_action(void){
@@ -2017,6 +2037,7 @@ void v_menu_init(void){
 	v_init_menu_display_struct_table();
 	v_init_menu_setting_struct_table();
 	v_init_menu_struct_save_history_data_table();
+	v_init_menu_struct_param_error_table();
 	v_menu_sleep_action();
 	v_menu_enter_display();
 	v_menu_function();
@@ -2028,11 +2049,11 @@ void v_menu_enter_short(void){
              v_setting_changed = 1;
              if(&v_struct_setting_display_format_flow_L == v_cur_menu){
                 v_setting.v_menu_display_format = v_menu_display_format_setting;
-		  		v_menu_notify_display_format_changed();
+		  		v_menu_notify_display_format_changed(v_menu_display_format_setting);
                 return;
              }else if (&v_struct_setting_show_all_set == v_cur_menu){
                 v_setting.v_menu_show_all_time  = v_menu_show_all_time_setting;
-		 		v_menu_notify_show_all_time_changed();
+		 		v_menu_notify_show_all_time_changed(v_menu_show_all_time_setting);
 		 //		v_menu_show_all_time_action();
                 return;
              }
@@ -2140,6 +2161,7 @@ void v_check_setting(void){
 	}
 	if(v_setting_tmp.v_menu_language!=v_menu_setting.v_menu_language){
 	       v_menu_setting.v_menu_language = v_setting_tmp.v_menu_language;
+	       v_init_language_hint_string();
 		v_setting_changed = 1;
 	}
 	if(v_setting_tmp.v_menu_show_all_time != v_menu_setting.v_menu_show_all_time){
@@ -2155,13 +2177,6 @@ void v_check_setting(void){
 		v_setting_changed = 1;
 		need_restart = 1;
 	}
-	if(v_setting_tmp.v_menu_show_all_time == 0 && v_setting_tmp.v_menu_display_format == V_MENU_DISPLAY_FORMAT_PULSE){ 
-    	    v_menu_setting.v_menu_display_format = v_setting.v_menu_display_format = v_setting_tmp.v_menu_display_format 
-    	    = v_menu_display_format_setting = V_MENU_DISPLAY_FORMAT_FLOW_L;
-    	    v_menu_notify_display_format_changed();  
-    	    v_setting_changed = 1;
-    	    need_restart = 1;
-    	}
 	if(v_setting_tmp.v_sensor_work_mode != v_menu_setting.v_sensor_work_mode){
 	    v_menu_setting.v_sensor_work_mode = v_setting_tmp.v_sensor_work_mode;
 	    need_restart = 1;
@@ -2184,7 +2199,16 @@ void v_check_setting(void){
 	    v_menu_setting.v_sensor_flow_smaple_time = v_setting_tmp.v_sensor_flow_smaple_time;
 	    need_restart = 1;
 	}
-	
+	if(v_setting_tmp.v_menu_show_all_time == 0 && v_setting_tmp.v_menu_display_format == V_MENU_DISPLAY_FORMAT_PULSE){ 
+    	    v_menu_setting.v_menu_display_format = v_setting.v_menu_display_format = v_setting_tmp.v_menu_display_format 
+    	    = v_menu_display_format_setting = V_MENU_DISPLAY_FORMAT_FLOW_L;
+    	    //v_menu_notify_display_format_changed();  
+//    	    v_cur_menu = &v_struct_param_error;
+//	    v_menu_function();
+	    v_setting_changed = 1;
+//    	    return;
+           need_restart = 1;
+    	}
 	if(v_menu_in_display){
 	   if(need_restart){
 		v_menu_enter_display();

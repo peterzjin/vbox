@@ -56,11 +56,12 @@ void v_menu_show_all_start()
 void v_menu_show_all_stop()
 {
 	v_setting.v_menu_show_all_time = 0;
+       v_setting.v_menu_display_format = V_MENU_DISPLAY_FORMAT_FLOW_L;
 	v_buzz_key(); 
 	v_menu_timer_stop();
 //	v_menu_show_all_time_setting = 0;
 //	v_setting_changed = 1;
-	v_menu_notify_show_all_time_changed();
+	v_menu_notify_show_all_time_changed(v_setting.v_menu_show_all_time);
 }
 void v_menu_show_all_resume()
 {
