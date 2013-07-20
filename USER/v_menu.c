@@ -1924,6 +1924,12 @@ static void v_init_menu_struct_save_history_data_table(void){
 		v_menu_show_save_history_data_failed
 	);
 }
+//show communicate error!
+static void v_menu_show_connection_error(void){
+       v_menu_show_str(0,"    Á¬½Ó´íÎó!");
+	v_menu_show_str(1,"Connection error!");
+	v_menu_clear_inverse();
+}
 //show parameter error
 static v_menu_struct_t v_struct_param_error;
 static void v_menu_show_param_error(void){
@@ -1987,9 +1993,9 @@ void v_menu_sleep_action(void){
 
 static int v_menu_init_settings(void){
 #ifdef DEBUG
-	v_setting.v_menu_language = V_MENU_LANGUAGE_CN;
+	v_setting.v_menu_language = V_MENU_LANGUAGE_EN;
 	v_setting.v_menu_display_format = V_MENU_DISPLAY_FORMAT_PULSE;//V_MENU_DISPLAY_FORMAT_FLOW_L;
-	v_setting.v_menu_show_all_time = 1;
+	v_setting.v_menu_show_all_time = 0;
 	v_setting.v_menu_sleep = 0;
 
 	v_setting.v_sensor_work_mode = 0x05;
@@ -2026,6 +2032,7 @@ void v_menu_init(void){
 //		sprintf(v_sprintf_buff,"Init failed %d!",ret);
 //		v_menu_show_str(0,v_sprintf_buff);
 //		v_menu_show_str(1,"");
+              v_menu_show_connection_error();
 		while(1);
 	}
 	
@@ -2033,7 +2040,11 @@ void v_menu_init(void){
        v_menu_setting = v_setting;
 	v_init_language_hint_string();
 //	v_cur_menu = &v_struct_setting_select_display_format;
-
+       if(v_setting.v_menu_show_all_time == 0 && v_setting.v_menu_display_format == V_MENU_DISPLAY_FORMAT_PULSE){ 
+	    v_menu_show_param_error();
+	    delay_ms(1000);
+	    delay_ms(1000);
+    	}
 	v_init_menu_display_struct_table();
 	v_init_menu_setting_struct_table();
 	v_init_menu_struct_save_history_data_table();

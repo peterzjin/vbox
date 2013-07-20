@@ -203,5 +203,6 @@ void v_lcd_init()
 {
 	v_lcd_gpio_init();
 	lcd_init();
+	v_lcd_backlight(1);
 	delay_1ms(2);
 }
