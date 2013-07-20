@@ -1201,7 +1201,8 @@ static void v_do_function_sensor_fuel_consum_1_Trip_Tot(void){
 }
 static void v_do_function_sensor_fuel_consum_1_travel_consum(void){
 	v_menu_show_wating();
-	v_menu_sart_equip_data_loop(V_MENU_DATA_LOOP_TIME);
+//	v_menu_sart_equip_data_loop(V_MENU_DATA_LOOP_TIME);
+       v_menu_sart_equip_data_loop(10000);//1s
 }
 static void v_do_function_sensor_fuel_consum_1_instant_consum(void){
 	v_menu_show_wating();
@@ -1213,7 +1214,8 @@ static void v_do_function_sensor_fuel_consum_2_Trip_Tot(void){
 }
 static void v_do_function_sensor_fuel_consum_2_travel_consum(void){
 	v_menu_show_wating();
-	v_menu_sart_equip_data_loop(V_MENU_DATA_LOOP_TIME);
+//	v_menu_sart_equip_data_loop(V_MENU_DATA_LOOP_TIME);
+       v_menu_sart_equip_data_loop(10000);//1s
 }
 static void v_do_function_sensor_fuel_consum_2_instant_consum(void){
 	v_menu_show_wating();
@@ -1842,6 +1844,7 @@ static uint8_t v_menu_send_and_wait_messge(uint8_t cmd_index){
 	return 1;
 }
 static void v_menu_enter_reset_all(void){
+#if 0
 	send_cmd(ENABLE_DISABLE_RESET,NULL,NULL);
 	delay_ms(50);
 	v_menu_send_and_wait_messge(GET_RESET_ENABLE);
@@ -1849,6 +1852,8 @@ static void v_menu_enter_reset_all(void){
 	if(v_menu_setting.v_menu_reset_tot_enable){
 	    send_cmd(TOTAL_RESET,NULL,NULL);
 	}
+#endif
+	send_cmd(TOTAL_RESET,NULL,NULL);
 	v_menu_function();
 }
 //do function for sd card
@@ -1928,11 +1933,11 @@ static void v_init_menu_struct_save_history_data_table(void){
 }
 void v_menu_notify_display_format_changed(void){
 	uint8_t tmp = v_menu_setting.v_menu_display_format;
-	send_cmd(DISPLAY_FORMAT,&tmp,1);
+	send_cmd(SET_DISPLAY_FORMAT,&tmp,1);
 }
 void v_menu_notify_show_all_time_changed(void){
 	uint8_t tmp = v_menu_setting.v_menu_show_all_time;
-	send_cmd(DISPLAY_FORMAT,&tmp,1);
+	send_cmd(SET_DISPLAY_DELAY_TIME,&tmp,1);
 }
 void v_menu_show_all_time_action(void){
 	if(v_menu_setting.v_menu_show_all_time == 0){ 
