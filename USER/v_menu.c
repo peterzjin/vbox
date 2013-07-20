@@ -1844,7 +1844,7 @@ static void v_menu_enter_reset_all(void){
 	//delay_ms(50);
 	v_menu_send_and_wait_messge(GET_RESET_ENABLE);
 	delay_ms(50);
-	if(v_menu_setting.v_menu_reset_tot_enable){
+	if(v_setting.v_menu_reset_tot_enable){
 	    send_cmd(TOTAL_RESET,NULL,0);
 	}
 	v_menu_function();
