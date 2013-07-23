@@ -8,6 +8,7 @@
 #include "v_menu_timer.h"
 #include "v_menu.h"
 #include "v_buzz.h"
+#include "uart_timer.h"
 
 // use TIM4 as timeout timer, 100us
 void v_menu_timer_init(void)
@@ -63,11 +64,11 @@ void v_menu_show_all_stop()
 //	v_setting_changed = 1;
 	v_menu_notify_show_all_time_changed(v_setting.v_menu_show_all_time);
 }
-void v_menu_show_all_resume()
+void v_menu_show_all_resume(void)
 {
 	 v_menu_timer_start(10000);//1s cycle
 }
-void v_menu_show_all_pause()
+void v_menu_show_all_pause(void)
 {
 	 v_menu_timer_stop();
 }

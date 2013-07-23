@@ -60,7 +60,7 @@ static v_menu_struct_t *v_cur_menu;
 uint8_t v_menu_show_all_flag = 0;
 uint8_t v_menu_sleep_wakeup_flag;
 uint8_t v_menu_deep_sleep_flag;
-static uint32_t v_menu_show_all_time_origin;
+//static uint32_t v_menu_show_all_time_origin;
 static uint8_t v_menu_in_display = 1;		//in diplay flag
 static uint32_t v_menu_show_last_value_0;
 static uint32_t v_menu_show_last_value_1;
@@ -286,7 +286,7 @@ void v_menu_show(void){
 	}
 }
 /*needed string*/
-static char *v_menu_lang_init;
+//static char *v_menu_lang_init;
 static char *v_menu_lang_fuel;
 static char *v_menu_lang_fuel_trip;
 static char *v_menu_lang_instant_fuel_consum;
@@ -2026,13 +2026,13 @@ static int v_menu_init_settings(void){
 	return 0;	
 }
 void v_menu_init(void){
-	int ret = 0;
+//	int ret = 0;
 //	v_menu_show_str(0,"    Init...");
-	if((ret = v_menu_init_settings()) != 0){
+	if((v_menu_init_settings()) != 0){
 //		sprintf(v_sprintf_buff,"Init failed %d!",ret);
 //		v_menu_show_str(0,v_sprintf_buff);
 //		v_menu_show_str(1,"");
-              v_menu_show_connection_error();
+        v_menu_show_connection_error();
 		while(1);
 	}
 	
@@ -2165,7 +2165,7 @@ void v_check_setting(void){
 	       v_menu_setting.v_menu_sleep = v_setting_tmp.v_menu_sleep;
  		v_menu_sleep_action();
  		if(v_setting_tmp.v_menu_sleep == 0 && v_menu_setting.v_menu_show_all_time!=0){
- 		    v_menu_show_all_resume(0);
+ 		    v_menu_show_all_resume();
  		}
  		
 		need_restart = 1;

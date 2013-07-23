@@ -12,6 +12,7 @@ void v_menu_timer_init(void);
 void v_menu_show_all_start(void);
 void v_menu_show_all_stop(void);
 void v_menu_timer_stop(void);
+void v_menu_show_all_resume(void);
 
 void v_menu_sleep_timer_init(void);
 void v_menu_sleep_timer_start(void);

@@ -101,13 +101,13 @@ void v_key_scan(void)
 	if(!v_key_down&&(V_KEY_ESC==V_KEY_ESC_DOWN || V_KEY_ENTER==V_KEY_ENTER_DOWN
 	                 ||V_KEY_UP==V_KEY_UP_DOWN ||V_KEY_DOWN==V_KEY_DOWN_DOWN))
 	{
-	       uint8_t flag_over = 0;
-		delay_ms(V_KEY_CHECK_INTERVAL);//È¥¶¶¶¯
+//        uint8_t flag_over = 0;
+		delay_ms(V_KEY_CHECK_INTERVAL);//
 		if(V_KEY_ESC==V_KEY_ESC_DOWN)
 		{     
 		       uint8_t flag_3S_over = 0;
 			uint8_t flag_9S_over = 0;
-		       flag_over = 1;
+//		       flag_over = 1;
 		       v_buzz_key(); 
 			v_key_down = 1;
 			for(i=0;i<V_KEY_CHECK_15S+1;i++){
@@ -150,7 +150,7 @@ void v_key_scan(void)
 			uint8_t flag_3S_over = 0;
 			uint8_t flag_6S_over = 0;
 			uint8_t flag_15S_over = 0;
-                     flag_over = 1;
+//                     flag_over = 1;
 		       v_buzz_key();
 			v_key_down = 1;
 			for(i=0;i<V_KEY_CHECK_15S+1;i++){
@@ -198,7 +198,7 @@ void v_key_scan(void)
 			}
 		}else if(V_KEY_UP==V_KEY_UP_DOWN)
 		{
-		       flag_over = 1;
+//		       flag_over = 1;
 		       v_buzz_key();
 			v_key_down = 1;
 			for(i=0;i<V_KEY_CHECK_15S+1;i++){
@@ -213,7 +213,7 @@ void v_key_scan(void)
 			v_key = V_KEY_UP_SHORT;
 		}else if(V_KEY_DOWN==V_KEY_DOWN_DOWN)
 		{
-		       flag_over = 1;
+//		       flag_over = 1;
 		       v_buzz_key();
 	 	 	v_key_down = 1;
 			for(i=0;i<V_KEY_CHECK_15S+1;i++){
