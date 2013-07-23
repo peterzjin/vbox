@@ -240,6 +240,8 @@ DRESULT disk_ioctl ( BYTE drv, BYTE ctrl, void *buff )
 		else
 			return RES_ERROR;
 	}
+
+	return RES_ERROR;
 }
 
 /**

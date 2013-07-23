@@ -2,6 +2,7 @@
 #include "sys.h"
 #include "ff.h"
 #include "led.h"
+#include "delay.h"
 #include "uart_timer.h"
 #include "v_menu.h"
 
@@ -565,7 +566,7 @@ void TIM3_IRQHandler(void)
 		/* Pin PD.02 toggling with frequency = 10KHz */
 		//GPIO_WriteBit(GPIOD, GPIO_Pin_2, (BitAction)(1 - GPIO_ReadOutputDataBit(GPIOD, GPIO_Pin_2)));
 		//LED1=!LED1;
-		send_cmd(loop_cmd_index, NULL, 0);
+		send_cmd(loop_cmd_index, loop_cmd_param, loop_cmd_param_len);
 	}
 }
 
